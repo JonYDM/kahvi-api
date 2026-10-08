@@ -17,8 +17,9 @@ public sealed record RegistrarVentaComando(
 public sealed record VentaResultado(Guid VentaId, decimal Total, decimal? Cambio);
 
 /// <summary>
-/// Caso de uso: registrar una venta de mostrador. Cobra productos (con stock) y descuenta
-/// el inventario. La venta debe incluir al menos un producto.
+/// Caso de uso: registrar una venta de mostrador. Cobra productos y registra la venta.
+/// Ya no descuenta inventario (el stock fue eliminado del modelo).
+/// La venta debe incluir al menos un producto.
 /// </summary>
 public sealed class RegistrarVenta
 {
@@ -40,7 +41,6 @@ public sealed class RegistrarVenta
             return Result<VentaResultado>.Falla("La venta debe incluir al menos un producto.");
 
         var lineas = new List<LineaVenta>(items.Count);
-        var descuentos = new List<(Producto producto, int cantidad)>(items.Count);
 
         foreach (ItemVentaComando item in items)
         {
@@ -51,12 +51,8 @@ public sealed class RegistrarVenta
                 return Result<VentaResultado>.Falla("Un producto no pertenece a la cafetería indicada.");
             if (item.Cantidad <= 0)
                 return Result<VentaResultado>.Falla($"La cantidad de '{producto.Nombre}' debe ser mayor que cero.");
-            if (item.Cantidad > producto.Stock)
-                return Result<VentaResultado>.Falla(
-                    $"Stock insuficiente de '{producto.Nombre}' (disponible: {producto.Stock}).");
 
             lineas.Add(new LineaVenta(producto.Id, producto.Nombre, item.Cantidad, producto.Precio));
-            descuentos.Add((producto, item.Cantidad));
         }
 
         // Construir la venta (valida que el monto recibido cubra el total).
@@ -66,14 +62,6 @@ public sealed class RegistrarVenta
             return Result<VentaResultado>.Falla(ventaResult.Error!);
 
         Venta venta = ventaResult.Valor!;
-
-        // Descontar stock de los productos.
-        foreach ((Producto producto, int cantidad) in descuentos)
-        {
-            producto.DescontarStock(cantidad);
-            await _productos.ActualizarAsync(producto, cancellationToken);
-        }
-
         await _ventas.AgregarAsync(venta, cancellationToken);
 
         return Result<VentaResultado>.Exito(new VentaResultado(venta.Id, venta.Total, venta.Cambio));

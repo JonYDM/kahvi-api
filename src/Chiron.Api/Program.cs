@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using Chiron.Application;
+using Chiron.Application.Categorias;
 using Chiron.Application.Comandas;
 using Chiron.Application.Common;
 using Chiron.Application.Metricas;
@@ -8,6 +9,7 @@ using Chiron.Application.PuntoVenta;
 using Chiron.Application.Seguridad;
 using Chiron.Application.Sucursales;
 using Chiron.Domain.Cafeterias;
+using Chiron.Domain.Categorias;
 using Chiron.Domain.Comandas;
 using Chiron.Domain.Common;
 using Chiron.Domain.PuntoVenta;
@@ -79,12 +81,13 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ── Seed en memoria (cafetería demo + usuarios para poder hacer login) ──
+// ── Seed en memoria (cafetería demo + usuarios + categorías para poder hacer login) ──
 {
     using var scope = app.Services.CreateScope();
     var hasheador = scope.ServiceProvider.GetRequiredService<IHasheadorContrasena>();
     var repoUsuarios = scope.ServiceProvider.GetRequiredService<IUsuarioRepository>();
     var repoCafeterias = scope.ServiceProvider.GetRequiredService<IRepository<Cafeteria>>();
+    var repoCategorias = scope.ServiceProvider.GetRequiredService<ICategoriaRepository>();
 
     // Cafetería demo.
     Cafeteria cafeDemo = Cafeteria.Crear("Café Kahvi Demo", "7770000000").Valor!;
@@ -119,6 +122,21 @@ var app = builder.Build();
         cafeDemo.Id, "cajademo", "Caja Demo",
         hasheador.Hashear("333333"), RolUsuario.Caja).Valor!;
     await repoUsuarios.AgregarAsync(caja);
+
+    // Categorías demo del menú de la cafetería.
+    var categoriasSeed = new[]
+    {
+        ("Cafe", 1),
+        ("Desayunos", 2),
+        ("Postres", 3),
+        ("Bebidas", 4)
+    };
+    foreach (var (nombre, orden) in categoriasSeed)
+    {
+        Result<Categoria> catResult = Categoria.Crear(cafeDemo.Id, nombre, orden);
+        if (catResult.EsExito)
+            await repoCategorias.AgregarAsync(catResult.Valor!);
+    }
 }
 
 app.UseSwagger();
@@ -327,21 +345,91 @@ app.MapPut("/api/usuarios/{id:guid}/datos", async (Guid id, EditarDatosUsuarioDt
 })
 .WithName("EditarDatosUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
 
+// ═══════════════════ CATEGORÍAS (menú dinámico de la cafetería) ═══════════════════
+
+// Listar categorías: accesible a todos los roles autenticados (mesero necesita ver el menú).
+app.MapGet("/api/categorias", async (ClaimsPrincipal user, GestionCategorias uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    Result<IReadOnlyList<Categoria>> r = await uc.ListarAsync(cafeteriaId);
+    if (!r.EsExito) return Results.BadRequest(new { error = r.Error });
+    return Results.Ok(r.Valor!.Select(c => new
+    {
+        id = c.Id,
+        nombre = c.Nombre,
+        orden = c.Orden
+    }));
+})
+.WithName("ListarCategorias").WithTags("Categorias").RequireAuthorization();
+
+// Crear categoría (solo Administrador).
+app.MapPost("/api/categorias", async (NuevaCategoriaDto dto, ClaimsPrincipal user, GestionCategorias uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    Result<Guid> r = await uc.CrearAsync(cafeteriaId, dto.Nombre, dto.Orden);
+    return r.EsExito
+        ? Results.Created($"/api/categorias/{r.Valor}", new { id = r.Valor })
+        : Results.BadRequest(new { error = r.Error });
+})
+.WithName("CrearCategoria").WithTags("Categorias").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Editar categoría (solo Administrador).
+app.MapPut("/api/categorias/{id:guid}", async (Guid id, NuevaCategoriaDto dto, ClaimsPrincipal user, GestionCategorias uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    return ToHttp(await uc.EditarAsync(cafeteriaId, id, dto.Nombre, dto.Orden));
+})
+.WithName("EditarCategoria").WithTags("Categorias").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Eliminar categoría (solo Administrador).
+app.MapDelete("/api/categorias/{id:guid}", async (Guid id, ClaimsPrincipal user, GestionCategorias uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    Result<bool> r = await uc.EliminarAsync(cafeteriaId, id);
+    return r.EsExito ? Results.NoContent() : Results.BadRequest(new { error = r.Error });
+})
+.WithName("EliminarCategoria").WithTags("Categorias").RequireAuthorization(p => p.RequireRole(Administrador));
+
 // ═══════════════════ PRODUCTOS (catálogo de la cafetería) ═══════════════════
 
 // Agregar producto al catálogo. CafeteriaId del token.
-app.MapPost("/api/productos", async (AgregarProductoComando cmd, ClaimsPrincipal user, AgregarProducto uc) =>
-    CafeDelToken(user) is Guid cafe
-        ? ToHttp(await uc.EjecutarAsync(cmd with { CafeteriaId = cafe }))
-        : SinCafeteria())
+app.MapPost("/api/productos", async (AgregarProductoDto dto, ClaimsPrincipal user, AgregarProducto uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    var cmd = new AgregarProductoComando(cafeteriaId, dto.Nombre, dto.Categoria, dto.Precio, dto.Costo);
+    return ToHttp(await uc.EjecutarAsync(cmd));
+})
 .WithName("AgregarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
 
 // Listar el catálogo de la cafetería del token.
+// El costo solo se incluye si el solicitante es Administrador.
 app.MapGet("/api/productos", async (ClaimsPrincipal user, FiltroEstado? estado, ListarCatalogo uc) =>
 {
     if (CafeDelToken(user) is not Guid cafeteriaId)
         return SinCafeteria();
-    return Results.Ok(await uc.EjecutarAsync(cafeteriaId, estado ?? FiltroEstado.Activos));
+
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    bool esAdmin = rolClaim == Administrador;
+
+    IReadOnlyList<Producto> productos = await uc.EjecutarAsync(cafeteriaId, estado ?? FiltroEstado.Activos);
+
+    // El costo solo lo ve el Administrador; para otros roles se omite (null).
+    var dtos = productos.Select(p => new
+    {
+        id = p.Id,
+        nombre = p.Nombre,
+        categoria = p.Categoria.ToString(),
+        precio = p.Precio,
+        costo = esAdmin ? p.Costo : (decimal?)null,
+        activo = p.Activo
+    });
+
+    return Results.Ok(dtos);
 })
 .WithName("ListarCatalogo").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador, Mesero, Cocina, Caja));
@@ -351,20 +439,10 @@ app.MapPut("/api/productos/{id:guid}", async (Guid id, EditarProductoDto dto, Cl
 {
     if (CafeDelToken(user) is not Guid cafeteriaId)
         return SinCafeteria();
-    var comando = new EditarProductoComando(id, cafeteriaId, dto.Nombre, dto.Categoria, dto.Precio);
+    var comando = new EditarProductoComando(id, cafeteriaId, dto.Nombre, dto.Categoria, dto.Precio, dto.Costo);
     return ToHttp(await uc.EjecutarAsync(comando));
 })
 .WithName("EditarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
-
-// Reabastecer stock de un producto.
-app.MapPost("/api/productos/{id:guid}/reabastecer", async (Guid id, ReabastecerStockDto dto, ClaimsPrincipal user, ReabastecerStock uc) =>
-{
-    if (CafeDelToken(user) is not Guid cafeteriaId)
-        return SinCafeteria();
-    var comando = new ReabastecerStockComando(id, cafeteriaId, dto.Cantidad);
-    return ToHttp(await uc.EjecutarAsync(comando));
-})
-.WithName("ReabastecerStock").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
 
 // Desactivar (baja lógica) un producto del catálogo.
 app.MapPost("/api/productos/{id:guid}/desactivar", async (Guid id, ClaimsPrincipal user, DesactivarProducto uc) =>
@@ -454,7 +532,9 @@ app.MapPost("/api/comandas", async (NuevaComandaDto dto, ClaimsPrincipal user, E
     var items = (dto.Items ?? Enumerable.Empty<ItemComandaDto>())
         .Select(i => (i.ProductoId, i.Nombre, i.Cantidad, i.Precio, i.Nota));
 
-    Result<Guid> r = await uc.EjecutarAsync(cafeteriaId, dto.Mesa, meseroId, dto.MeseroNombre ?? "", items);
+    Result<Guid> r = await uc.EjecutarAsync(
+        cafeteriaId, dto.Mesa ?? string.Empty, meseroId, dto.MeseroNombre ?? "",
+        items, dto.EsParaLlevar, dto.NombreCliente);
     return r.EsExito ? Results.Created($"/api/comandas/{r.Valor}", new { id = r.Valor }) : ToHttp(r);
 })
 .WithName("EnviarComanda").WithTags("Comandas").RequireAuthorization(p => p.RequireRole(Mesero, Administrador));
@@ -479,6 +559,8 @@ app.MapGet("/api/comandas/activas", async (ClaimsPrincipal user, ListarComandasA
         estado = c.Estado.ToString(),
         creadaEn = c.CreadaEn,
         total = c.Total,
+        esParaLlevar = c.EsParaLlevar,
+        nombreCliente = c.NombreCliente,
         items = c.Lineas.Select(l => new
         {
             productoId = l.ProductoId,
@@ -564,16 +646,24 @@ record GestionarUsuarioDto(string? NuevoNombre, AccionUsuario? Accion);
 record EditarDatosUsuarioDto(
     string Nombres, string ApellidoPaterno, string? ApellidoMaterno, string Telefono, string? Curp);
 
-// Editar producto.
-record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio);
+// Categorías dinámicas del menú.
+record NuevaCategoriaDto(string Nombre, int Orden);
 
-// Reabastecer stock.
-record ReabastecerStockDto(int Cantidad);
+// Agregar producto (sin stock, con costo opcional).
+record AgregarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio, decimal? Costo = null);
+
+// Editar producto (sin stock, con costo opcional).
+record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio, decimal? Costo = null);
 
 // Ajustar fecha de renovación de sucursal.
 record AjustarRenovacionDto(DateOnly Fecha);
 
-// Comandas.
+// Comandas (con soporte para llevar y nombre de cliente).
 record ItemComandaDto(Guid ProductoId, string Nombre, int Cantidad, decimal Precio, string? Nota);
-record NuevaComandaDto(string Mesa, string? MeseroNombre, IEnumerable<ItemComandaDto>? Items);
+record NuevaComandaDto(
+    string? Mesa,
+    string? MeseroNombre,
+    IEnumerable<ItemComandaDto>? Items,
+    bool EsParaLlevar = false,
+    string? NombreCliente = null);
 record CobrarComandaDto(MetodoPago MetodoPago, decimal? MontoRecibido);

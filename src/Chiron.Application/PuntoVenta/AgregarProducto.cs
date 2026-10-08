@@ -9,10 +9,10 @@ public sealed record AgregarProductoComando(
     string Nombre,
     CategoriaProducto Categoria,
     decimal Precio,
-    int Stock);
+    decimal? Costo = null);
 
 /// <summary>
-/// Caso de uso: agregar un producto al catálogo de la cafeter�a (H6.1).
+/// Caso de uso: agregar un producto al catálogo de la cafetería.
 /// </summary>
 public sealed class AgregarProducto
 {
@@ -24,7 +24,7 @@ public sealed class AgregarProducto
         AgregarProductoComando comando, CancellationToken cancellationToken = default)
     {
         Result<Producto> resultado = Producto.Crear(
-            comando.CafeteriaId, comando.Nombre, comando.Categoria, comando.Precio, comando.Stock);
+            comando.CafeteriaId, comando.Nombre, comando.Categoria, comando.Precio, comando.Costo);
         if (!resultado.EsExito)
             return Result<Guid>.Falla(resultado.Error!);
 
@@ -35,7 +35,7 @@ public sealed class AgregarProducto
 }
 
 /// <summary>
-/// Caso de uso: listar el catálogo de productos de una cafeter�a.
+/// Caso de uso: listar el catálogo de productos de una cafetería.
 /// </summary>
 public sealed class ListarCatalogo
 {
@@ -44,11 +44,11 @@ public sealed class ListarCatalogo
     public ListarCatalogo(IProductoRepository productos) => _productos = productos;
 
     public async Task<IReadOnlyList<Producto>> EjecutarAsync(
-        Guid CafeteriaId,
+        Guid cafeteriaId,
         Chiron.Application.Common.FiltroEstado estado = Chiron.Application.Common.FiltroEstado.Activos,
         CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Producto> todos = await _productos.ListarPorCafeteriaAsync(CafeteriaId, cancellationToken);
+        IReadOnlyList<Producto> todos = await _productos.ListarPorCafeteriaAsync(cafeteriaId, cancellationToken);
         return Chiron.Application.Common.FiltroEstadoExtensiones
             .AplicarFiltro(todos, estado, p => p.Activo)
             .OrderBy(p => p.Nombre)

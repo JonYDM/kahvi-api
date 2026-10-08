@@ -1,3 +1,4 @@
+using Chiron.Application.Categorias;
 using Chiron.Application.Comandas;
 using Chiron.Application.PuntoVenta;
 using Chiron.Application.Seguridad;
@@ -22,6 +23,10 @@ public static class DependencyInjection
     {
         // Repositorio genérico: cubre Cafeteria, Sucursal, PagoSuscripcion y cualquier otra entidad base.
         services.AddSingleton(typeof(Chiron.Application.Common.IRepository<>), typeof(RepositorioEnMemoria<>));
+
+        // Repositorio de categorías dinámicas del menú.
+        services.AddSingleton<CategoriaRepositorioEnMemoria>();
+        services.AddSingleton<ICategoriaRepository>(sp => sp.GetRequiredService<CategoriaRepositorioEnMemoria>());
 
         // Repositorios específicos del punto de venta.
         services.AddSingleton<ProductoRepositorioEnMemoria>();

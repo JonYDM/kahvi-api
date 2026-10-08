@@ -1,3 +1,4 @@
+using Chiron.Application.Categorias;
 using Chiron.Application.Comandas;
 using Chiron.Application.PuntoVenta;
 using Chiron.Application.Seguridad;
@@ -17,12 +18,14 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // ── Categorías dinámicas del menú ──
+        services.AddTransient<GestionCategorias>();
+
         // ── Punto de venta (catálogo + ventas) ──
         services.AddTransient<AgregarProducto>();
         services.AddTransient<ListarCatalogo>();
         services.AddTransient<RegistrarVenta>();
         services.AddTransient<EditarProducto>();
-        services.AddTransient<ReabastecerStock>();
         services.AddTransient<DesactivarProducto>();
         services.AddTransient<ListarVentas>();
         services.AddTransient<ResumenVentas>();

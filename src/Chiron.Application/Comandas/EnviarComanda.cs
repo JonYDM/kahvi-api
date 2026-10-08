@@ -6,6 +6,7 @@ namespace Chiron.Application.Comandas;
 /// <summary>
 /// Caso de uso: el mesero envía una comanda a cocina. Valida los datos, asigna el
 /// siguiente folio y persiste la comanda en estado Recibida.
+/// Soporta pedidos en mesa (EsParaLlevar=false) y para llevar (EsParaLlevar=true).
 /// </summary>
 public sealed class EnviarComanda
 {
@@ -21,20 +22,26 @@ public sealed class EnviarComanda
     /// <param name="meseroId">Id del usuario mesero (del claim JWT).</param>
     /// <param name="meseroNombre">Nombre del mesero para mostrar en cocina/caja.</param>
     /// <param name="items">Líneas del pedido: qué producto, cuánto, a qué precio y nota opcional.</param>
+    /// <param name="esParaLlevar">True si el pedido es para llevar (no requiere mesa).</param>
+    /// <param name="nombreCliente">Nombre del cliente para pedidos para llevar (opcional).</param>
     public async Task<Result<Guid>> EjecutarAsync(
         Guid cafeteriaId,
         string mesa,
         Guid meseroId,
         string meseroNombre,
         IEnumerable<(Guid productoId, string nombre, int cantidad, decimal precio, string? nota)> items,
+        bool esParaLlevar = false,
+        string? nombreCliente = null,
         CancellationToken cancellationToken = default)
     {
         if (cafeteriaId == Guid.Empty)
             return Result<Guid>.Falla("La comanda debe pertenecer a una cafetería válida.");
         if (meseroId == Guid.Empty)
             return Result<Guid>.Falla("El mesero es obligatorio.");
-        if (string.IsNullOrWhiteSpace(mesa))
-            return Result<Guid>.Falla("La mesa es obligatoria.");
+
+        // Validación de mesa: requerida si no es para llevar.
+        if (!esParaLlevar && string.IsNullOrWhiteSpace(mesa))
+            return Result<Guid>.Falla("La mesa es obligatoria para pedidos en restaurante.");
 
         var listaItems = items?.ToList()
             ?? new List<(Guid, string, int, decimal, string?)>();
@@ -49,7 +56,8 @@ public sealed class EnviarComanda
         // Obtener el folio consecutivo antes de crear la entidad (así el folio es definitivo).
         int folio = await _comandas.SiguienteFolioAsync(cafeteriaId, cancellationToken);
 
-        Result<Comanda> resultado = Comanda.Crear(cafeteriaId, folio, mesa, meseroId, meseroNombre, lineas);
+        Result<Comanda> resultado = Comanda.Crear(
+            cafeteriaId, folio, mesa, meseroId, meseroNombre, lineas, esParaLlevar, nombreCliente);
         if (!resultado.EsExito)
             return Result<Guid>.Falla(resultado.Error!);
 

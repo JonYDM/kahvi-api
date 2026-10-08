@@ -3,17 +3,18 @@ using Chiron.Domain.PuntoVenta;
 
 namespace Chiron.Application.PuntoVenta;
 
-/// <summary>Datos para editar un producto del cat√°logo.</summary>
+/// <summary>Datos para editar un producto del cat√°logo (incluye costo opcional).</summary>
 public sealed record EditarProductoComando(
     Guid ProductoId,
     Guid CafeteriaId,
     string Nombre,
     CategoriaProducto Categoria,
-    decimal Precio);
+    decimal Precio,
+    decimal? Costo = null);
 
 /// <summary>
-/// Caso de uso: editar nombre, categor√≠a y precio de un producto.
-/// Valida existencia y pertenencia a la cafeterÌa (multi-tenant).
+/// Caso de uso: editar nombre, categor√≠a, precio y costo de un producto.
+/// Valida existencia y pertenencia a la cafeter√≠a (multi-tenant).
 /// </summary>
 public sealed class EditarProducto
 {
@@ -28,7 +29,7 @@ public sealed class EditarProducto
         if (producto is null)
             return Result<bool>.Falla("El producto no existe.");
         if (producto.CafeteriaId != comando.CafeteriaId)
-            return Result<bool>.Falla("El producto no pertenece a tu cafeterÌa.");
+            return Result<bool>.Falla("El producto no pertenece a tu cafeter√≠a.");
 
         Result<bool> datos = producto.ActualizarDatos(comando.Nombre, comando.Categoria);
         if (!datos.EsExito) return datos;
@@ -36,37 +37,9 @@ public sealed class EditarProducto
         Result<bool> precio = producto.CambiarPrecio(comando.Precio);
         if (!precio.EsExito) return precio;
 
-        await _productos.ActualizarAsync(producto, cancellationToken);
-        return Result<bool>.Exito(true);
-    }
-}
+        // Actualizar el costo (puede ser null para borrarlo).
+        producto.ActualizarCosto(comando.Costo);
 
-/// <summary>Datos para reabastecer stock de un producto.</summary>
-public sealed record ReabastecerStockComando(
-    Guid ProductoId,
-    Guid CafeteriaId,
-    int Cantidad);
-
-/// <summary>Caso de uso: aumentar el stock de un producto (reabastecer).</summary>
-public sealed class ReabastecerStock
-{
-    private readonly IProductoRepository _productos;
-
-    public ReabastecerStock(IProductoRepository productos) => _productos = productos;
-
-    public async Task<Result<bool>> EjecutarAsync(
-        ReabastecerStockComando comando, CancellationToken cancellationToken = default)
-    {
-        if (comando.Cantidad <= 0)
-            return Result<bool>.Falla("La cantidad a reabastecer debe ser mayor que cero.");
-
-        Producto? producto = await _productos.ObtenerPorIdAsync(comando.ProductoId, cancellationToken);
-        if (producto is null)
-            return Result<bool>.Falla("El producto no existe.");
-        if (producto.CafeteriaId != comando.CafeteriaId)
-            return Result<bool>.Falla("El producto no pertenece a tu cafeterÌa.");
-
-        producto.ReabastecerStock(comando.Cantidad);
         await _productos.ActualizarAsync(producto, cancellationToken);
         return Result<bool>.Exito(true);
     }
@@ -83,13 +56,13 @@ public sealed class DesactivarProducto
     public DesactivarProducto(IProductoRepository productos) => _productos = productos;
 
     public async Task<Result<bool>> EjecutarAsync(
-        Guid productoId, Guid CafeteriaId, CancellationToken cancellationToken = default)
+        Guid productoId, Guid cafeteriaId, CancellationToken cancellationToken = default)
     {
         Producto? producto = await _productos.ObtenerPorIdAsync(productoId, cancellationToken);
         if (producto is null)
             return Result<bool>.Falla("El producto no existe.");
-        if (producto.CafeteriaId != CafeteriaId)
-            return Result<bool>.Falla("El producto no pertenece a tu cafeterÌa.");
+        if (producto.CafeteriaId != cafeteriaId)
+            return Result<bool>.Falla("El producto no pertenece a tu cafeter√≠a.");
 
         producto.Desactivar();
         await _productos.ActualizarAsync(producto, cancellationToken);

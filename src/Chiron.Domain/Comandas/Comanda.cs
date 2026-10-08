@@ -7,6 +7,10 @@ namespace Chiron.Domain.Comandas;
 /// el Mesero la levanta (Recibida), Cocina la avanza (EnPreparacion -> Lista) y Caja la
 /// cobra (Entregada). Multi-tenant: pertenece a una Cafetería y los flujos la aíslan por ella.
 ///
+/// Soporta dos tipos de servicio:
+///   - Para mesa: EsParaLlevar = false, Mesa obligatoria (ej. "Mesa 4", "Barra").
+///   - Para llevar: EsParaLlevar = true, Mesa puede ser vacía o "Para llevar".
+///
 /// Diseño rico: constructor privado + fábrica Crear que valida; el avance de estado solo
 /// ocurre por métodos del dominio (no se puede saltar ni retroceder arbitrariamente).
 /// </summary>
@@ -41,7 +45,20 @@ public sealed class Comanda : EntidadBase
     /// <summary>Total de la comanda (suma de las líneas).</summary>
     public decimal Total { get; private set; }
 
-    private Comanda(Guid cafeteriaId, int folio, string mesa, Guid meseroId, string meseroNombre, List<LineaComanda> lineas)
+    /// <summary>
+    /// Indica si el pedido es para llevar (true) o para servir en mesa (false).
+    /// </summary>
+    public bool EsParaLlevar { get; private set; }
+
+    /// <summary>
+    /// Nombre del cliente para pedidos para llevar. Opcional.
+    /// Ayuda al mesero a llamar al cliente cuando el pedido está listo.
+    /// </summary>
+    public string? NombreCliente { get; private set; }
+
+    private Comanda(
+        Guid cafeteriaId, int folio, string mesa, Guid meseroId, string meseroNombre,
+        List<LineaComanda> lineas, bool esParaLlevar, string? nombreCliente)
     {
         CafeteriaId = cafeteriaId;
         Folio = folio;
@@ -52,6 +69,8 @@ public sealed class Comanda : EntidadBase
         Estado = EstadoComanda.Recibida;
         CreadaEn = DateTime.UtcNow;
         Total = lineas.Sum(l => l.Subtotal);
+        EsParaLlevar = esParaLlevar;
+        NombreCliente = string.IsNullOrWhiteSpace(nombreCliente) ? null : nombreCliente.Trim();
     }
 
     // Constructor privado sin parámetros para EF Core.
@@ -63,26 +82,37 @@ public sealed class Comanda : EntidadBase
     }
 
     /// <summary>
-    /// Crea una Comanda validando las reglas de negocio: debe pertenecer a una cafetería,
-    /// tener mesa, un mesero y al menos una línea.
+    /// Crea una Comanda validando las reglas de negocio.
+    /// - Para mesa: mesa es obligatoria.
+    /// - Para llevar: mesa puede ser vacía (se asigna "Para llevar" automáticamente).
     /// </summary>
     public static Result<Comanda> Crear(
         Guid cafeteriaId, int folio, string mesa, Guid meseroId, string meseroNombre,
-        IEnumerable<LineaComanda> lineas)
+        IEnumerable<LineaComanda> lineas,
+        bool esParaLlevar = false,
+        string? nombreCliente = null)
     {
         if (cafeteriaId == Guid.Empty)
             return Result<Comanda>.Falla("La comanda debe pertenecer a una cafetería válida.");
         if (meseroId == Guid.Empty)
             return Result<Comanda>.Falla("La comanda debe tener un mesero válido.");
-        if (string.IsNullOrWhiteSpace(mesa))
-            return Result<Comanda>.Falla("La mesa es obligatoria.");
+
+        // Validación de mesa según tipo de servicio.
+        if (!esParaLlevar && string.IsNullOrWhiteSpace(mesa))
+            return Result<Comanda>.Falla("La mesa es obligatoria para pedidos en restaurante.");
+
+        // Para llevar: si no se indica mesa, se asigna "Para llevar" como referencia.
+        string mesaFinal = esParaLlevar
+            ? (string.IsNullOrWhiteSpace(mesa) ? "Para llevar" : mesa.Trim())
+            : mesa.Trim();
 
         var listaLineas = lineas?.ToList() ?? new List<LineaComanda>();
         if (listaLineas.Count == 0)
             return Result<Comanda>.Falla("La comanda debe tener al menos una línea.");
 
         string nombre = string.IsNullOrWhiteSpace(meseroNombre) ? "Mesero" : meseroNombre.Trim();
-        return Result<Comanda>.Exito(new Comanda(cafeteriaId, folio, mesa.Trim(), meseroId, nombre, listaLineas));
+        return Result<Comanda>.Exito(new Comanda(
+            cafeteriaId, folio, mesaFinal, meseroId, nombre, listaLineas, esParaLlevar, nombreCliente));
     }
 
     /// <summary>
