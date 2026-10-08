@@ -1,18 +1,18 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# docker-compose para DESARROLLO LOCAL: API de Chiron + PostgreSQL.
+# docker-compose para DESARROLLO LOCAL: Kahvi API + PostgreSQL.
 # Uso: docker compose up --build
 # ─────────────────────────────────────────────────────────────────────────────
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: chiron
-      POSTGRES_PASSWORD: chiron_dev
-      POSTGRES_DB: chiron
+      POSTGRES_USER: kahvi
+      POSTGRES_PASSWORD: kahvi_dev
+      POSTGRES_DB: kahvi
     ports:
       - "5432:5432"
     volumes:
-      - chiron_pgdata:/var/lib/postgresql/data
+      - kahvi_pgdata:/var/lib/postgresql/data
 
   api:
     build:
@@ -21,11 +21,13 @@ services:
     depends_on:
       - db
     environment:
-      # Cadena de conexión a PostgreSQL (la API la lee de esta variable).
-      ConnectionStrings__Chiron: "Host=db;Port=5432;Database=chiron;Username=chiron;Password=chiron_dev"
+      # Cadena de conexion a PostgreSQL.
+      ConnectionStrings__Chiron: "Host=db;Port=5432;Database=kahvi;Username=kahvi;Password=kahvi_dev"
       ASPNETCORE_URLS: "http://+:8080"
+      # JWT — cambiar en produccion
+      Jwt__Clave: "clave-de-desarrollo-solo-local-cambiar-en-produccion-1234567890"
     ports:
       - "8080:8080"
 
 volumes:
-  chiron_pgdata:
+  kahvi_pgdata:

@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Chiron.Api — Dockerfile multi-stage
+# Kahvi API — Dockerfile multi-stage
 # Etapa 1: build (compila y publica). Etapa 2: runtime ligero (solo lo necesario).
-# Esto produce una imagen pequeña y portable (Railway, Render, Fly.io, etc.).
+# Produce una imagen pequeña y portable (Railway, Render, Fly.io, etc.).
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ---- Etapa de build ----
