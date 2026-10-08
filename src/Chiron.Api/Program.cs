@@ -453,6 +453,15 @@ app.MapPost("/api/productos/{id:guid}/desactivar", async (Guid id, ClaimsPrincip
 })
 .WithName("DesactivarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
 
+// Reactivar un producto previamente desactivado.
+app.MapPost("/api/productos/{id:guid}/activar", async (Guid id, ClaimsPrincipal user, ActivarProducto uc) =>
+{
+    if (CafeDelToken(user) is not Guid cafeteriaId)
+        return SinCafeteria();
+    return ToHttp(await uc.EjecutarAsync(id, cafeteriaId));
+})
+.WithName("ActivarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
 // ═══════════════════ VENTAS ═══════════════════
 
 // Registrar una venta de mostrador (caja directa, sin comanda previa).

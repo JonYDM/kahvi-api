@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddTransient<RegistrarVenta>();
         services.AddTransient<EditarProducto>();
         services.AddTransient<DesactivarProducto>();
+        services.AddTransient<ActivarProducto>();
         services.AddTransient<ListarVentas>();
         services.AddTransient<ResumenVentas>();
 

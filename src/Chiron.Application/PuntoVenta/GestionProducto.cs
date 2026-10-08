@@ -69,3 +69,27 @@ public sealed class DesactivarProducto
         return Result<bool>.Exito(true);
     }
 }
+
+/// <summary>
+/// Caso de uso: activar (reactivar) un producto previamente desactivado.
+/// </summary>
+public sealed class ActivarProducto
+{
+    private readonly IProductoRepository _productos;
+
+    public ActivarProducto(IProductoRepository productos) => _productos = productos;
+
+    public async Task<Result<bool>> EjecutarAsync(
+        Guid productoId, Guid cafeteriaId, CancellationToken cancellationToken = default)
+    {
+        Producto? producto = await _productos.ObtenerPorIdAsync(productoId, cancellationToken);
+        if (producto is null)
+            return Result<bool>.Falla("El producto no existe.");
+        if (producto.CafeteriaId != cafeteriaId)
+            return Result<bool>.Falla("El producto no pertenece a tu cafetería.");
+
+        producto.Activar();
+        await _productos.ActualizarAsync(producto, cancellationToken);
+        return Result<bool>.Exito(true);
+    }
+}
