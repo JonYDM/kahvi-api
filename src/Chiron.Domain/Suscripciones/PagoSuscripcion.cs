@@ -32,10 +32,10 @@ public sealed class PagoSuscripcion : EntidadBase
     /// <summary>Momento (UTC) en que se capturó el pago.</summary>
     public DateTime FechaRegistro { get; private set; }
 
-    private PagoSuscripcion(Guid CafeteriaId, Guid sucursalId, decimal monto, DateOnly fechaPago,
+    private PagoSuscripcion(Guid cafeteriaId, Guid sucursalId, decimal monto, DateOnly fechaPago,
         PlanSuscripcion plan, DateOnly periodoDesde, DateOnly periodoHasta, string? nota)
     {
-        CafeteriaId = CafeteriaId;
+        CafeteriaId = cafeteriaId;
         SucursalId = sucursalId;
         Monto = monto;
         FechaPago = fechaPago;

@@ -34,10 +34,10 @@ public sealed class Sucursal : EntidadBase
     /// <summary>Fecha en que vence/renueva la suscripción de esta sucursal.</summary>
     public DateOnly FechaRenovacion { get; private set; }
 
-    private Sucursal(Guid CafeteriaId, string nombre, string? direccion, string? telefono,
+    private Sucursal(Guid cafeteriaId, string nombre, string? direccion, string? telefono,
         bool esMatriz, PlanSuscripcion plan, decimal precio, DateOnly fechaRenovacion)
     {
-        CafeteriaId = CafeteriaId;
+        CafeteriaId = cafeteriaId;
         Nombre = nombre;
         Direccion = direccion;
         Telefono = telefono;

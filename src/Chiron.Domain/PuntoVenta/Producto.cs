@@ -26,9 +26,9 @@ public sealed class Producto : EntidadBase
     /// <summary>Indica si el producto está activo en el catálogo (baja lógica).</summary>
     public bool Activo { get; private set; }
 
-    private Producto(Guid CafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
+    private Producto(Guid cafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
     {
-        CafeteriaId = CafeteriaId;
+        CafeteriaId = cafeteriaId;
         Nombre = nombre;
         Categoria = categoria;
         Precio = precio;
