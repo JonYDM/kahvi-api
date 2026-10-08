@@ -1,11 +1,11 @@
 using Chiron.Application.Common;
 using Chiron.Domain.Common;
 using Chiron.Domain.Usuarios;
-using Chiron.Domain.Veterinarias;
+using Chiron.Domain.Cafeterias;
 
 namespace Chiron.Application.Seguridad;
 
-/// <summary>Datos de entrada del login: identificador (usuario o teléfono) + PIN.</summary>
+/// <summary>Datos de entrada del login: identificador (usuario) + PIN.</summary>
 public sealed record LoginComando(string Identificador, string Pin);
 
 /// <summary>Resultado del login: token, expiración y datos básicos del usuario.</summary>
@@ -15,25 +15,25 @@ public sealed record LoginResultado(
 /// <summary>
 /// Caso de uso: autenticar con identificador + PIN y emitir un JWT.
 /// Incluye bloqueo temporal por intentos fallidos (los PIN son cortos) y validación de
-/// suscripción (veterinaria activa). Mensajes genéricos para no dar pistas a atacantes.
+/// suscripción (cafetería activa). Mensajes genéricos para no dar pistas a atacantes.
 /// </summary>
 public sealed class Login
 {
     private readonly IUsuarioRepository _usuarios;
     private readonly IHasheadorContrasena _hasheador;
     private readonly IGeneradorToken _generadorToken;
-    private readonly IRepository<Veterinaria> _veterinarias;
+    private readonly IRepository<Cafeteria> _cafeterias;
 
     public Login(
         IUsuarioRepository usuarios,
         IHasheadorContrasena hasheador,
         IGeneradorToken generadorToken,
-        IRepository<Veterinaria> veterinarias)
+        IRepository<Cafeteria> cafeterias)
     {
         _usuarios = usuarios;
         _hasheador = hasheador;
         _generadorToken = generadorToken;
-        _veterinarias = veterinarias;
+        _cafeterias = cafeterias;
     }
 
     public async Task<Result<LoginResultado>> EjecutarAsync(
@@ -65,14 +65,14 @@ public sealed class Login
             return Result<LoginResultado>.Falla(errorGenerico);
         }
 
-        // Control de suscripción (el SuperAdmin no depende de una veterinaria).
+        // Control de suscripción (el SuperAdmin no depende de una cafetería).
         bool adminOperativo = true;
         if (usuario.Rol != RolUsuario.SuperAdmin)
         {
-            Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(usuario.VeterinariaId, cancellationToken);
-            if (vet is null || !vet.Activa)
-                return Result<LoginResultado>.Falla("La veterinaria está inactiva. Contacte al proveedor.");
-            adminOperativo = vet.AdminOperativo;
+            Cafeteria? caf = await _cafeterias.ObtenerPorIdAsync(usuario.CafeteriaId, cancellationToken);
+            if (caf is null || !caf.Activa)
+                return Result<LoginResultado>.Falla("La cafetería está inactiva. Contacte al proveedor.");
+            adminOperativo = caf.AdminOperativo;
         }
 
         // Login exitoso: reiniciar contadores y emitir token.
@@ -80,8 +80,7 @@ public sealed class Login
         await _usuarios.ActualizarAsync(usuario, cancellationToken);
 
         var datos = new DatosToken(
-            usuario.Id, usuario.VeterinariaId, usuario.NombreUsuario, usuario.Rol,
-            usuario.ClienteId, adminOperativo);
+            usuario.Id, usuario.CafeteriaId, usuario.NombreUsuario, usuario.Rol, adminOperativo);
         (string token, DateTime expiraEn) = _generadorToken.Generar(datos);
 
         return Result<LoginResultado>.Exito(

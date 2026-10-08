@@ -3,20 +3,24 @@ using Chiron.Domain.Usuarios;
 
 namespace Chiron.Infrastructure.Persistencia;
 
-/// <summary>Implementación en memoria de IUsuarioRepository.</summary>
+/// <summary>
+/// Implementación en memoria de IUsuarioRepository. Singleton para que el seed del
+/// Program.cs persista durante toda la vida de la aplicación (sin BD real).
+/// </summary>
 public sealed class UsuarioRepositorioEnMemoria : RepositorioEnMemoria<Usuario>, IUsuarioRepository
 {
-    public async Task<Usuario?> ObtenerPorNombreUsuarioAsync(string nombreUsuario, CancellationToken cancellationToken = default)
+    public async Task<Usuario?> ObtenerPorNombreUsuarioAsync(
+        string nombreUsuario, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Usuario> todos = await ObtenerTodosAsync(cancellationToken);
         return todos.FirstOrDefault(u => u.NombreUsuario == nombreUsuario);
     }
 
-    public async Task<IReadOnlyList<Usuario>> ListarPorVeterinariaAsync(
-        Guid veterinariaId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Usuario>> ListarPorCafeteriaAsync(
+        Guid cafeteriaId, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Usuario> todos = await ObtenerTodosAsync(cancellationToken);
-        return todos.Where(u => u.VeterinariaId == veterinariaId).ToList();
+        return todos.Where(u => u.CafeteriaId == cafeteriaId).ToList();
     }
 
     public async Task<IReadOnlyList<Usuario>> ListarPorRolAsync(
@@ -24,11 +28,5 @@ public sealed class UsuarioRepositorioEnMemoria : RepositorioEnMemoria<Usuario>,
     {
         IReadOnlyList<Usuario> todos = await ObtenerTodosAsync(cancellationToken);
         return todos.Where(u => u.Rol == rol).ToList();
-    }
-
-    public async Task<Usuario?> ObtenerPorClienteAsync(Guid clienteId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<Usuario> todos = await ObtenerTodosAsync(cancellationToken);
-        return todos.FirstOrDefault(u => u.ClienteId == clienteId);
     }
 }

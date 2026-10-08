@@ -3,16 +3,16 @@ using System.Text;
 using Chiron.Application.Common;
 using Chiron.Domain.Common;
 using Chiron.Domain.Usuarios;
-using Chiron.Domain.Veterinarias;
+using Chiron.Domain.Cafeterias;
 
 namespace Chiron.Application.Seguridad;
 
 /// <summary>
-/// Datos para dar de alta a un usuario de staff con sus datos personales (HU-SA4):
-/// el SuperAdmin crea Administradores y el Administrador crea Veterinarios/Recepcionistas.
+/// Datos para dar de alta a un usuario de staff con sus datos personales:
+/// el SuperAdmin crea Administradores y el Administrador crea Mesero/Cocina/Caja.
 /// </summary>
 public sealed record AltaStaffComando(
-    Guid VeterinariaId,
+    Guid CafeteriaId,
     string Nombre,
     string ApellidoPaterno,
     string? ApellidoMaterno,
@@ -32,21 +32,21 @@ public sealed record UsuarioCreadoDto(Guid Id, string NombreUsuario, string Nomb
 public sealed class AltaStaff
 {
     private readonly IUsuarioRepository _usuarios;
-    private readonly IRepository<Veterinaria> _veterinarias;
+    private readonly IRepository<Cafeteria> _cafeterias;
     private readonly IHasheadorContrasena _hasheador;
 
     public AltaStaff(
-        IUsuarioRepository usuarios, IRepository<Veterinaria> veterinarias, IHasheadorContrasena hasheador)
+        IUsuarioRepository usuarios, IRepository<Cafeteria> cafeterias, IHasheadorContrasena hasheador)
     {
         _usuarios = usuarios;
-        _veterinarias = veterinarias;
+        _cafeterias = cafeterias;
         _hasheador = hasheador;
     }
 
     public async Task<Result<UsuarioCreadoDto>> EjecutarAsync(
         AltaStaffComando comando, CancellationToken cancellationToken = default)
     {
-        if (comando.Rol is RolUsuario.DuenoMascota or RolUsuario.SuperAdmin)
+        if (comando.Rol is RolUsuario.SuperAdmin)
             return Result<UsuarioCreadoDto>.Falla("Rol no permitido para el alta de staff.");
         if (string.IsNullOrWhiteSpace(comando.Nombre))
             return Result<UsuarioCreadoDto>.Falla("El nombre es obligatorio.");
@@ -57,9 +57,9 @@ public sealed class AltaStaff
         if (!pinValido.EsExito)
             return Result<UsuarioCreadoDto>.Falla(pinValido.Error!);
 
-        Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(comando.VeterinariaId, cancellationToken);
-        if (vet is null)
-            return Result<UsuarioCreadoDto>.Falla("La veterinaria no existe.");
+        Cafeteria? caf = await _cafeterias.ObtenerPorIdAsync(comando.CafeteriaId, cancellationToken);
+        if (caf is null)
+            return Result<UsuarioCreadoDto>.Falla("La cafetería no existe.");
 
         string? nombreUsuario = await GenerarDisponibleAsync(comando, cancellationToken);
         if (nombreUsuario is null)
@@ -70,7 +70,7 @@ public sealed class AltaStaff
             .Select(p => p!.Trim()));
 
         Result<Usuario> creado = Usuario.CrearStaff(
-            comando.VeterinariaId, nombreUsuario, nombreCompleto, _hasheador.Hashear(comando.Pin), comando.Rol);
+            comando.CafeteriaId, nombreUsuario, nombreCompleto, _hasheador.Hashear(comando.Pin), comando.Rol);
         if (!creado.EsExito)
             return Result<UsuarioCreadoDto>.Falla(creado.Error!);
 

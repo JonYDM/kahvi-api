@@ -1,106 +1,53 @@
-using Chiron.Application.Citas;
-using Chiron.Application.Clientes;
-using Chiron.Application.Cobros;
-using Chiron.Application.Common;
-using Chiron.Application.Expedientes;
-using Chiron.Application.Mascotas;
+using Chiron.Application.Comandas;
 using Chiron.Application.PuntoVenta;
-using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
-using Chiron.Domain.Clientes;
-using Chiron.Domain.Cobros;
-using Chiron.Domain.Mascotas;
 using Chiron.Domain.Usuarios;
-using Chiron.Infrastructure.Almacenamiento;
 using Chiron.Infrastructure.Mensajeria;
 using Chiron.Infrastructure.Persistencia;
-using Chiron.Infrastructure.Persistencia.Ef;
 using Chiron.Infrastructure.Seguridad;
-using Amazon.S3;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Infrastructure;
 
 /// <summary>
 /// Registro de dependencias de la capa de Infraestructura.
-/// Dos modos de persistencia intercambiables (ambos cumplen los mismos contratos):
-///  - En memoria (AddInfrastructure): para consola/demo, sin base de datos.
-///  - PostgreSQL con EF Core (AddInfrastructurePostgres): para producción.
+/// Modo único: persistencia EN MEMORIA (demo/desarrollo sin base de datos).
 /// El segundo parámetro (jwtOpciones) configura la firma de tokens; si es null se usa
 /// una configuración por defecto (solo apta para pruebas locales).
 /// </summary>
 public static class DependencyInjection
 {
-    /// <summary>Persistencia EN MEMORIA (por defecto para consola/demo).</summary>
+    /// <summary>Persistencia EN MEMORIA para demo y desarrollo.</summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, JwtOpciones? jwtOpciones = null)
     {
-        services.AddSingleton(typeof(IRepository<>), typeof(RepositorioEnMemoria<>));
+        // Repositorio genérico: cubre Cafeteria, Sucursal, PagoSuscripcion y cualquier otra entidad base.
+        services.AddSingleton(typeof(Chiron.Application.Common.IRepository<>), typeof(RepositorioEnMemoria<>));
 
-        services.AddSingleton<ClienteRepositorioEnMemoria>();
-        services.AddSingleton<IClienteRepository>(sp => sp.GetRequiredService<ClienteRepositorioEnMemoria>());
-        services.AddSingleton<IRepository<Cliente>>(sp => sp.GetRequiredService<ClienteRepositorioEnMemoria>());
-
-        services.AddSingleton<MascotaRepositorioEnMemoria>();
-        services.AddSingleton<IMascotaRepository>(sp => sp.GetRequiredService<MascotaRepositorioEnMemoria>());
-        services.AddSingleton<IRepository<Mascota>>(sp => sp.GetRequiredService<MascotaRepositorioEnMemoria>());
-
-        services.AddSingleton<FotoMascotaRepositorioEnMemoria>();
-        services.AddSingleton<IFotoMascotaRepository>(sp => sp.GetRequiredService<FotoMascotaRepositorioEnMemoria>());
-
-        services.AddSingleton<RegistroMedicoRepositorioEnMemoria>();
-        services.AddSingleton<IRegistroMedicoRepository>(sp => sp.GetRequiredService<RegistroMedicoRepositorioEnMemoria>());
-
-        services.AddSingleton<CitaRepositorioEnMemoria>();
-        services.AddSingleton<ICitaRepository>(sp => sp.GetRequiredService<CitaRepositorioEnMemoria>());
-
+        // Repositorios específicos del punto de venta.
         services.AddSingleton<ProductoRepositorioEnMemoria>();
         services.AddSingleton<IProductoRepository>(sp => sp.GetRequiredService<ProductoRepositorioEnMemoria>());
 
         services.AddSingleton<VentaRepositorioEnMemoria>();
         services.AddSingleton<IVentaRepository>(sp => sp.GetRequiredService<VentaRepositorioEnMemoria>());
 
+        // Repositorio de usuarios.
         services.AddSingleton<UsuarioRepositorioEnMemoria>();
         services.AddSingleton<IUsuarioRepository>(sp => sp.GetRequiredService<UsuarioRepositorioEnMemoria>());
-        services.AddSingleton<IRepository<Usuario>>(sp => sp.GetRequiredService<UsuarioRepositorioEnMemoria>());
 
-        services.AddSingleton<CargoRepositorioEnMemoria>();
-        services.AddSingleton<ICargoRepository>(sp => sp.GetRequiredService<CargoRepositorioEnMemoria>());
-        services.AddSingleton<IRepository<Cargo>>(sp => sp.GetRequiredService<CargoRepositorioEnMemoria>());
-
-        AddMensajeria(services);
-        AddSeguridad(services, jwtOpciones);
-        return services;
-    }
-
-    /// <summary>Persistencia con PostgreSQL vía EF Core (producción).</summary>
-    public static IServiceCollection AddInfrastructurePostgres(
-        this IServiceCollection services, string connectionString, JwtOpciones? jwtOpciones = null)
-    {
-        services.AddDbContext<ChironDbContext>(options => options.UseNpgsql(connectionString));
-
-        services.AddScoped(typeof(IRepository<>), typeof(RepositorioEf<>));
-
-        services.AddScoped<IClienteRepository, ClienteRepositorioEf>();
-        services.AddScoped<IMascotaRepository, MascotaRepositorioEf>();
-        services.AddScoped<IFotoMascotaRepository, FotoMascotaRepositorioEf>();
-        services.AddScoped<IRegistroMedicoRepository, RegistroMedicoRepositorioEf>();
-        services.AddScoped<ICitaRepository, CitaRepositorioEf>();
-        services.AddScoped<IProductoRepository, ProductoRepositorioEf>();
-        services.AddScoped<IVentaRepository, VentaRepositorioEf>();
-        services.AddScoped<IUsuarioRepository, UsuarioRepositorioEf>();
-        services.AddScoped<ICargoRepository, CargoRepositorioEf>();
+        // Repositorio de comandas.
+        services.AddSingleton<ComandaRepositorioEnMemoria>();
+        services.AddSingleton<IComandaRepository>(sp => sp.GetRequiredService<ComandaRepositorioEnMemoria>());
 
         AddMensajeria(services);
         AddSeguridad(services, jwtOpciones);
         return services;
     }
 
-    // Servicio de mensajería: implementación de PRUEBA (log), común a ambos modos.
+    // Servicio de mensajería: implementación de consola para demo/pruebas.
     private static void AddMensajeria(IServiceCollection services)
-        => services.AddSingleton<IServicioMensajeria, MensajeriaConsola>();
+        => services.AddSingleton<MensajeriaConsola>();
 
-    // Servicios de seguridad comunes: hasheo de contraseñas y generación de JWT.
+    // Servicios de seguridad: hasheo de contraseñas y generación de JWT.
     private static void AddSeguridad(IServiceCollection services, JwtOpciones? jwtOpciones)
     {
         services.AddSingleton<IHasheadorContrasena, HasheadorBCrypt>();
@@ -112,33 +59,5 @@ public static class DependencyInjection
         };
         services.AddSingleton(opciones);
         services.AddSingleton<IGeneradorToken, GeneradorTokenJwt>();
-    }
-
-    /// <summary>
-    /// Registra el almacenamiento de fotos. Si R2 está configurado (variables de
-    /// entorno presentes), usa Cloudflare R2; si no, usa un almacenamiento nulo
-    /// (para desarrollo/consola sin credenciales). Llamar DESPUÉS de AddInfrastructure*.
-    /// </summary>
-    public static IServiceCollection AddAlmacenamiento(this IServiceCollection services, R2Opciones r2)
-    {
-        if (r2.EstaConfigurado)
-        {
-            services.AddSingleton(r2);
-            services.AddSingleton<IAmazonS3>(_ =>
-            {
-                var config = new AmazonS3Config
-                {
-                    ServiceURL = r2.Endpoint,
-                    ForcePathStyle = true // R2 usa path-style
-                };
-                return new AmazonS3Client(r2.AccessKeyId, r2.SecretAccessKey, config);
-            });
-            services.AddScoped<IAlmacenamientoArchivos, AlmacenamientoR2>();
-        }
-        else
-        {
-            services.AddSingleton<IAlmacenamientoArchivos, AlmacenamientoNulo>();
-        }
-        return services;
     }
 }

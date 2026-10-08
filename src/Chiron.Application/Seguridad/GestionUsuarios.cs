@@ -54,14 +54,13 @@ public sealed record GestionarUsuarioComando(
     string? NuevoNombre,
     AccionUsuario? Accion,
     RolUsuario SolicitanteRol,
-    Guid SolicitanteVeterinariaId);
+    Guid SolicitanteCafeteriaId);
 
 /// <summary>
 /// Caso de uso: editar el nombre y/o activar-desactivar un usuario, con las mismas reglas
 /// de autorización que el reset de PIN:
-///  - Administrador: gestiona su staff (Vet/Recep) y dueños de SU veterinaria.
+///  - Administrador: gestiona su staff (Mesero/Cocina/Caja) de SU cafetería.
 ///  - SuperAdmin: gestiona Administradores.
-/// No permite auto-desactivarse (evita quedarse sin acceso).
 /// </summary>
 public sealed class GestionarUsuario
 {
@@ -76,7 +75,7 @@ public sealed class GestionarUsuario
         if (objetivo is null)
             return Result<bool>.Falla("El usuario indicado no existe.");
 
-        Result<bool> autorizado = Autorizar(comando.SolicitanteRol, comando.SolicitanteVeterinariaId, objetivo);
+        Result<bool> autorizado = Autorizar(comando.SolicitanteRol, comando.SolicitanteCafeteriaId, objetivo);
         if (!autorizado.EsExito)
             return autorizado;
 
@@ -101,7 +100,7 @@ public sealed class GestionarUsuario
     /// <summary>
     /// Regla única de quién puede gestionar a quién (la usan gestionar, detalle y edición de datos).
     /// </summary>
-    internal static Result<bool> Autorizar(RolUsuario solicitanteRol, Guid solicitanteVeterinariaId, Usuario objetivo)
+    internal static Result<bool> Autorizar(RolUsuario solicitanteRol, Guid solicitanteCafeteriaId, Usuario objetivo)
     {
         switch (solicitanteRol)
         {
@@ -111,9 +110,9 @@ public sealed class GestionarUsuario
                 return Result<bool>.Exito(true);
 
             case RolUsuario.Administrador:
-                if (objetivo.VeterinariaId != solicitanteVeterinariaId)
-                    return Result<bool>.Falla("No puedes gestionar usuarios de otra veterinaria.");
-                if (objetivo.Rol is not (RolUsuario.Veterinario or RolUsuario.Recepcionista or RolUsuario.DuenoMascota))
+                if (objetivo.CafeteriaId != solicitanteCafeteriaId)
+                    return Result<bool>.Falla("No puedes gestionar usuarios de otra cafetería.");
+                if (objetivo.Rol is not (RolUsuario.Mesero or RolUsuario.Cocina or RolUsuario.Caja))
                     return Result<bool>.Falla("No tienes permiso para gestionar ese usuario.");
                 return Result<bool>.Exito(true);
 

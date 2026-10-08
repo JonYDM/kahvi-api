@@ -18,11 +18,11 @@ public sealed record UsuarioDetalleDto(
     string? CurpEnmascarada,
     RolUsuario Rol,
     bool Activo,
-    Guid VeterinariaId)
+    Guid CafeteriaId)
 {
     public static UsuarioDetalleDto Desde(Usuario u) => new(
         u.Id, u.NombreUsuario, u.Nombre, u.ObtenerNombres(), u.ApellidoPaterno, u.ApellidoMaterno,
-        u.Telefono, u.CurpEnmascarada(), u.Rol, u.Activo, u.VeterinariaId);
+        u.Telefono, u.CurpEnmascarada(), u.Rol, u.Activo, u.CafeteriaId);
 }
 
 /// <summary>Caso de uso: obtener el detalle de un usuario (mismas reglas que gestionar).</summary>
@@ -33,14 +33,14 @@ public sealed class ObtenerDetalleUsuario
     public ObtenerDetalleUsuario(IUsuarioRepository usuarios) => _usuarios = usuarios;
 
     public async Task<Result<UsuarioDetalleDto>> EjecutarAsync(
-        Guid usuarioId, RolUsuario solicitanteRol, Guid solicitanteVeterinariaId,
+        Guid usuarioId, RolUsuario solicitanteRol, Guid solicitanteCafeteriaId,
         CancellationToken cancellationToken = default)
     {
         Usuario? u = await _usuarios.ObtenerPorIdAsync(usuarioId, cancellationToken);
         if (u is null)
             return Result<UsuarioDetalleDto>.Falla("El usuario indicado no existe.");
 
-        Result<bool> autorizado = GestionarUsuario.Autorizar(solicitanteRol, solicitanteVeterinariaId, u);
+        Result<bool> autorizado = GestionarUsuario.Autorizar(solicitanteRol, solicitanteCafeteriaId, u);
         return autorizado.EsExito
             ? Result<UsuarioDetalleDto>.Exito(UsuarioDetalleDto.Desde(u))
             : Result<UsuarioDetalleDto>.Falla(autorizado.Error!);
@@ -59,7 +59,7 @@ public sealed record EditarDatosUsuarioComando(
     string Telefono,
     string? Curp,
     RolUsuario SolicitanteRol,
-    Guid SolicitanteVeterinariaId);
+    Guid SolicitanteCafeteriaId);
 
 /// <summary>Caso de uso: editar los datos personales de un usuario de staff.</summary>
 public sealed class EditarDatosUsuario
@@ -75,11 +75,9 @@ public sealed class EditarDatosUsuario
         if (u is null)
             return Result<UsuarioDetalleDto>.Falla("El usuario indicado no existe.");
 
-        Result<bool> autorizado = GestionarUsuario.Autorizar(c.SolicitanteRol, c.SolicitanteVeterinariaId, u);
+        Result<bool> autorizado = GestionarUsuario.Autorizar(c.SolicitanteRol, c.SolicitanteCafeteriaId, u);
         if (!autorizado.EsExito)
             return Result<UsuarioDetalleDto>.Falla(autorizado.Error!);
-        if (u.Rol == RolUsuario.DuenoMascota)
-            return Result<UsuarioDetalleDto>.Falla("Los datos del dueño se editan desde su ficha de cliente.");
 
         Result<bool> editado = u.EditarDatosPersonales(
             c.Nombres, c.ApellidoPaterno, c.ApellidoMaterno, c.Telefono, c.Curp);

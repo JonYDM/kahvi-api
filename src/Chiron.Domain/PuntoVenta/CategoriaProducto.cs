@@ -5,9 +5,9 @@ namespace Chiron.Domain.PuntoVenta;
 /// </summary>
 public enum CategoriaProducto
 {
-    Alimento = 1,
-    Medicina = 2,
-    Accesorio = 3,
-    Higiene = 4,
+    Cafe = 1,
+    Desayunos = 2,
+    Postres = 3,
+    Bebidas = 4,
     Otro = 5
 }

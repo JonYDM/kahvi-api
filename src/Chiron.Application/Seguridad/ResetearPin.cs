@@ -10,19 +10,19 @@ namespace Chiron.Application.Seguridad;
 /// <param name="UsuarioId">Usuario al que se le reinicia el PIN.</param>
 /// <param name="NuevoPin">Nuevo PIN (6 dígitos).</param>
 /// <param name="SolicitanteRol">Rol de quien solicita el reseteo (del token).</param>
-/// <param name="SolicitanteVeterinariaId">Veterinaria de quien solicita (del token). Guid.Empty para SuperAdmin.</param>
+/// <param name="SolicitanteCafeteriaId">Cafetería de quien solicita (del token). Guid.Empty para SuperAdmin.</param>
 public sealed record ResetearPinComando(
     Guid UsuarioId,
     string NuevoPin,
     RolUsuario SolicitanteRol,
-    Guid SolicitanteVeterinariaId);
+    Guid SolicitanteCafeteriaId);
 
 /// <summary>
 /// Caso de uso: resetear (asignar un nuevo) PIN de un usuario, para recuperar el acceso
 /// cuando alguien lo olvida. Aplica reglas de autorización por rol y aislamiento multi-tenant:
-///  - Administrador: puede resetear el PIN del staff (Veterinario/Recepcionista) y de los
-///    dueños de mascota de SU veterinaria. No puede tocar otros Administradores ni SuperAdmin.
-///  - SuperAdmin: puede resetear el PIN de los Administradores (de cualquier veterinaria).
+///  - Administrador: puede resetear el PIN del staff (Mesero/Cocina/Caja) de SU cafetería.
+///    No puede tocar otros Administradores ni SuperAdmin.
+///  - SuperAdmin: puede resetear el PIN de los Administradores (de cualquier cafetería).
 ///
 /// El nuevo PIN se valida (6 dígitos) y se guarda hasheado. También se desbloquea al usuario.
 /// </summary>
@@ -66,17 +66,17 @@ public sealed class ResetearPin
         switch (comando.SolicitanteRol)
         {
             case RolUsuario.SuperAdmin:
-                // El SuperAdmin gestiona a los Administradores de las veterinarias.
+                // El SuperAdmin gestiona a los Administradores de las cafeterías.
                 if (objetivo.Rol != RolUsuario.Administrador)
                     return Result<bool>.Falla("El SuperAdmin solo puede resetear el PIN de Administradores.");
                 return Result<bool>.Exito(true);
 
             case RolUsuario.Administrador:
-                // El Administrador solo actúa dentro de SU veterinaria.
-                if (objetivo.VeterinariaId != comando.SolicitanteVeterinariaId)
-                    return Result<bool>.Falla("No puedes resetear usuarios de otra veterinaria.");
-                // Y solo sobre staff operativo o dueños (no otros admins ni superadmin).
-                if (objetivo.Rol is not (RolUsuario.Veterinario or RolUsuario.Recepcionista or RolUsuario.DuenoMascota))
+                // El Administrador solo actúa dentro de SU cafetería.
+                if (objetivo.CafeteriaId != comando.SolicitanteCafeteriaId)
+                    return Result<bool>.Falla("No puedes resetear usuarios de otra cafetería.");
+                // Y solo sobre staff operativo (no otros admins ni superadmin).
+                if (objetivo.Rol is not (RolUsuario.Mesero or RolUsuario.Cocina or RolUsuario.Caja))
                     return Result<bool>.Falla("No tienes permiso para resetear el PIN de ese usuario.");
                 return Result<bool>.Exito(true);
 

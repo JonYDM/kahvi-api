@@ -4,8 +4,7 @@ namespace Chiron.Domain.Usuarios;
 
 /// <summary>
 /// Usuario que accede al sistema. Autenticación con identificador + PIN (sin correo):
-///  - Staff (Administrador/Veterinario/Recepcionista): identificador = nombre de usuario.
-///  - Dueño de mascota: identificador = su teléfono.
+///  - Staff (Administrador/Mesero/Cocina/Caja): identificador = nombre de usuario.
 ///  - SuperAdmin: nombre de usuario.
 ///
 /// El PIN se almacena SIEMPRE como hash (BCrypt); nunca en claro. Se incluye bloqueo
@@ -19,11 +18,11 @@ public sealed class Usuario : EntidadBase
     /// <summary>Minutos de bloqueo tras exceder los intentos.</summary>
     public const int MinutosBloqueo = 5;
 
-    /// <summary>Veterinaria (tenant). Guid.Empty para SuperAdmin.</summary>
-    public Guid VeterinariaId { get; private set; }
+    /// <summary>Cafetería (tenant). Guid.Empty para SuperAdmin.</summary>
+    public Guid CafeteriaId { get; private set; }
 
     /// <summary>
-    /// Identificador de acceso: nombre de usuario (staff) o teléfono (dueño de mascota).
+    /// Identificador de acceso: nombre de usuario del staff.
     /// Único a nivel global. Se normaliza a minúsculas/sin espacios.
     /// </summary>
     public string NombreUsuario { get; private set; }
@@ -36,12 +35,6 @@ public sealed class Usuario : EntidadBase
 
     /// <summary>Rol del usuario.</summary>
     public RolUsuario Rol { get; private set; }
-
-    /// <summary>
-    /// Cliente (dueño) al que corresponde este usuario, cuando el rol es DuenoMascota.
-    /// Null para el staff. Permite que el dueño vea solo SUS mascotas.
-    /// </summary>
-    public Guid? ClienteId { get; private set; }
 
     /// <summary>Indica si el usuario está activo.</summary>
     public bool Activo { get; private set; }
@@ -64,14 +57,13 @@ public sealed class Usuario : EntidadBase
     /// <summary>CURP (opcional). Se guarda en mayúsculas y con formato validado.</summary>
     public string? Curp { get; private set; }
 
-    private Usuario(Guid veterinariaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol, Guid? clienteId)
+    private Usuario(Guid cafeteriaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol)
     {
-        VeterinariaId = veterinariaId;
+        CafeteriaId = cafeteriaId;
         NombreUsuario = nombreUsuario;
         Nombre = nombre;
         HashPin = hashPin;
         Rol = rol;
-        ClienteId = clienteId;
         Activo = true;
     }
 
@@ -87,32 +79,16 @@ public sealed class Usuario : EntidadBase
     /// Crea un usuario de staff (o SuperAdmin) con nombre de usuario y PIN (ya hasheado).
     /// </summary>
     public static Result<Usuario> CrearStaff(
-        Guid veterinariaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol)
+        Guid cafeteriaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol)
     {
-        if (rol == RolUsuario.DuenoMascota)
-            return Result<Usuario>.Falla("Use CrearDueno para usuarios dueños de mascota.");
-        if (rol != RolUsuario.SuperAdmin && veterinariaId == Guid.Empty)
-            return Result<Usuario>.Falla("El usuario debe pertenecer a una veterinaria válida.");
+        if (rol != RolUsuario.SuperAdmin && cafeteriaId == Guid.Empty)
+            return Result<Usuario>.Falla("El usuario debe pertenecer a una cafetería válida.");
 
-        return CrearInterno(veterinariaId, nombreUsuario, nombre, hashPin, rol, clienteId: null);
-    }
-
-    /// <summary>
-    /// Crea un usuario dueño de mascota: identificador = teléfono, ligado a su Cliente.
-    /// </summary>
-    public static Result<Usuario> CrearDueno(
-        Guid veterinariaId, Guid clienteId, string telefono, string nombre, string hashPin)
-    {
-        if (veterinariaId == Guid.Empty)
-            return Result<Usuario>.Falla("El usuario debe pertenecer a una veterinaria válida.");
-        if (clienteId == Guid.Empty)
-            return Result<Usuario>.Falla("El dueño debe estar ligado a un cliente válido.");
-
-        return CrearInterno(veterinariaId, telefono, nombre, hashPin, RolUsuario.DuenoMascota, clienteId);
+        return CrearInterno(cafeteriaId, nombreUsuario, nombre, hashPin, rol);
     }
 
     private static Result<Usuario> CrearInterno(
-        Guid veterinariaId, string identificador, string nombre, string hashPin, RolUsuario rol, Guid? clienteId)
+        Guid cafeteriaId, string identificador, string nombre, string hashPin, RolUsuario rol)
     {
         if (string.IsNullOrWhiteSpace(identificador))
             return Result<Usuario>.Falla("El identificador de usuario es obligatorio.");
@@ -122,7 +98,7 @@ public sealed class Usuario : EntidadBase
             return Result<Usuario>.Falla("El PIN es obligatorio.");
 
         string idNormalizado = NormalizarIdentificador(identificador);
-        var usuario = new Usuario(veterinariaId, idNormalizado, nombre.Trim(), hashPin, rol, clienteId);
+        var usuario = new Usuario(cafeteriaId, idNormalizado, nombre.Trim(), hashPin, rol);
         return Result<Usuario>.Exito(usuario);
     }
 

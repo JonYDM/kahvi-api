@@ -1,9 +1,5 @@
-using Chiron.Application.Citas;
-using Chiron.Application.Clientes;
-using Chiron.Application.Expedientes;
-using Chiron.Application.Mascotas;
+using Chiron.Application.Comandas;
 using Chiron.Application.PuntoVenta;
-using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,31 +17,7 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddTransient<RegistrarClienteConMascota>();
-        services.AddTransient<BuscarClientes>();
-        services.AddTransient<ListarMascotasDeCliente>();
-        services.AddTransient<ListarMascotasDeVeterinaria>();
-        services.AddTransient<ObtenerMascota>();
-        services.AddTransient<SubirFotoPerfil>();
-        services.AddTransient<CrearCliente>();
-        services.AddTransient<EditarCliente>();
-        services.AddTransient<CambiarEstadoCliente>();
-        services.AddTransient<AgregarMascota>();
-        services.AddTransient<EditarMascota>();
-        services.AddTransient<CambiarEstadoMascota>();
-        services.AddTransient<GestionFotoMascota>();
-
-        services.AddTransient<AgregarRegistroMedico>();
-        services.AddTransient<VerExpedienteMascota>();
-
-        services.AddTransient<AgendarCita>();
-        services.AddTransient<VerAgenda>();
-        services.AddTransient<CitasDelDueno>();
-        services.AddTransient<CambiarEstadoCita>();
-
-        services.AddTransient<GenerarRecordatorios>();
-        services.AddTransient<EnviarRecordatorios>();
-
+        // ── Punto de venta (catálogo + ventas) ──
         services.AddTransient<AgregarProducto>();
         services.AddTransient<ListarCatalogo>();
         services.AddTransient<RegistrarVenta>();
@@ -53,9 +25,16 @@ public static class DependencyInjection
         services.AddTransient<ReabastecerStock>();
         services.AddTransient<DesactivarProducto>();
         services.AddTransient<ListarVentas>();
-        services.AddTransient<ListarVentasDeCliente>();
         services.AddTransient<ResumenVentas>();
 
+        // ── Comandas (flujo Mesero -> Cocina -> Caja) ──
+        services.AddTransient<EnviarComanda>();
+        services.AddTransient<ListarComandasActivas>();
+        services.AddTransient<AvanzarComanda>();
+        services.AddTransient<CancelarComanda>();
+        services.AddTransient<CobrarComanda>();
+
+        // ── Seguridad / usuarios ──
         services.AddTransient<Login>();
         services.AddTransient<Identificar>();
         services.AddTransient<CrearUsuarioStaff>();
@@ -63,19 +42,15 @@ public static class DependencyInjection
         services.AddTransient<Chiron.Application.Sucursales.GestionSucursales>();
         services.AddTransient<ObtenerDetalleUsuario>();
         services.AddTransient<EditarDatosUsuario>();
-        services.AddTransient<CrearUsuarioDueno>();
         services.AddTransient<ResetearPin>();
-        services.AddTransient<ListarUsuariosDeVeterinaria>();
+        services.AddTransient<ListarUsuariosDeCafeteria>();
         services.AddTransient<ListarAdministradores>();
-        services.AddTransient<ObtenerUsuarioDeCliente>();
         services.AddTransient<CambiarMiPin>();
         services.AddTransient<GestionarUsuario>();
 
+        // ── Métricas ──
         services.AddTransient<Chiron.Application.Metricas.MetricasDashboard>();
         services.AddTransient<Chiron.Application.Metricas.MetricasSuperAdmin>();
-
-        services.AddTransient<Chiron.Application.Cobros.GenerarCargo>();
-        services.AddTransient<Chiron.Application.Cobros.ListarCargosPendientes>();
 
         return services;
     }

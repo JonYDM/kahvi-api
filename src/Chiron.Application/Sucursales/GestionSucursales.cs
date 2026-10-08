@@ -2,14 +2,14 @@ using Chiron.Application.Common;
 using Chiron.Domain.Common;
 using Chiron.Domain.Sucursales;
 using Chiron.Domain.Suscripciones;
-using Chiron.Domain.Veterinarias;
+using Chiron.Domain.Cafeterias;
 
 namespace Chiron.Application.Sucursales;
 
 /// <summary>Sucursal tal como la ve el SuperAdmin (unidad de cobro).</summary>
 public sealed record SucursalDto(
     Guid Id,
-    Guid VeterinariaId,
+    Guid CafeteriaId,
     string Nombre,
     string? Direccion,
     string? Telefono,
@@ -21,15 +21,15 @@ public sealed record SucursalDto(
     DateOnly FechaRenovacion)
 {
     public static SucursalDto Desde(Sucursal s) => new(
-        s.Id, s.VeterinariaId, s.Nombre, s.Direccion, s.Telefono, s.EsMatriz, s.Activa,
+        s.Id, s.CafeteriaId, s.Nombre, s.Direccion, s.Telefono, s.EsMatriz, s.Activa,
         s.FechaAlta, s.Plan, s.Precio, s.FechaRenovacion);
 }
 
 /// <summary>
-/// Veterinaria con sus sucursales. <c>Direccion</c>, <c>Plan</c> y <c>FechaRenovacion</c> se
-/// toman de la MATRIZ (compatibilidad con el contrato anterior, cuando vivían en Veterinaria).
+/// Cafeteria con sus sucursales. <c>Direccion</c>, <c>Plan</c> y <c>FechaRenovacion</c> se
+/// toman de la MATRIZ (compatibilidad con el contrato anterior, cuando vivían en Cafeteria).
 /// </summary>
-public sealed record VeterinariaConSucursalesDto(
+public sealed record CafeteriaConSucursalesDto(
     Guid Id,
     string Nombre,
     string Telefono,
@@ -52,8 +52,8 @@ public sealed record RenovarComando(decimal? Monto, DateOnly? FechaPago, string?
 /// <summary>Pago de suscripción para el historial de cobros.</summary>
 public sealed record PagoSuscripcionDto(
     Guid Id,
-    Guid VeterinariaId,
-    string VeterinariaNombre,
+    Guid CafeteriaId,
+    string CafeteriaNombre,
     Guid SucursalId,
     string SucursalNombre,
     bool EsMatriz,
@@ -67,38 +67,38 @@ public sealed record PagoSuscripcionDto(
 
 /// <summary>
 /// Reglas de suscripción por sucursal (HU-SU1..SU3):
-///  - Toda veterinaria tiene una Matriz; si falta (datos en memoria o viejos), se crea al vuelo
-///    con el plan/fecha que tenía la veterinaria.
-///  - La Matriz sigue el estado de la veterinaria: se activa/desactiva junto con ella, y
-///    renovarla reactiva a la veterinaria.
+///  - Toda Cafeteria tiene una Matriz; si falta (datos en memoria o viejos), se crea al vuelo
+///    con el plan/fecha que tenía la Cafeteria.
+///  - La Matriz sigue el estado de la Cafeteria: se activa/desactiva junto con ella, y
+///    renovarla reactiva a la Cafeteria.
 ///  - Las demás sucursales se activan/desactivan por separado.
 /// </summary>
 public sealed class GestionSucursales
 {
-    private readonly IRepository<Veterinaria> _veterinarias;
+    private readonly IRepository<Cafeteria> _Cafeterias;
     private readonly IRepository<Sucursal> _sucursales;
     private readonly IRepository<PagoSuscripcion> _pagos;
 
     public GestionSucursales(
-        IRepository<Veterinaria> veterinarias, IRepository<Sucursal> sucursales, IRepository<PagoSuscripcion> pagos)
+        IRepository<Cafeteria> Cafeterias, IRepository<Sucursal> sucursales, IRepository<PagoSuscripcion> pagos)
     {
-        _veterinarias = veterinarias;
+        _Cafeterias = Cafeterias;
         _sucursales = sucursales;
         _pagos = pagos;
     }
 
     private static DateOnly Hoy() => HoraMexico.Hoy();
 
-    /// <summary>Todas las veterinarias con sus sucursales (Matriz primero).</summary>
-    public async Task<IReadOnlyList<VeterinariaConSucursalesDto>> ListarAsync(CancellationToken ct = default)
+    /// <summary>Todas las Cafeterias con sus sucursales (Matriz primero).</summary>
+    public async Task<IReadOnlyList<CafeteriaConSucursalesDto>> ListarAsync(CancellationToken ct = default)
     {
-        IReadOnlyList<Veterinaria> vets = await _veterinarias.ObtenerTodosAsync(ct);
+        IReadOnlyList<Cafeteria> vets = await _Cafeterias.ObtenerTodosAsync(ct);
         List<Sucursal> todas = (await _sucursales.ObtenerTodosAsync(ct)).ToList();
 
-        var resultado = new List<VeterinariaConSucursalesDto>(vets.Count);
-        foreach (Veterinaria v in vets)
+        var resultado = new List<CafeteriaConSucursalesDto>(vets.Count);
+        foreach (Cafeteria v in vets)
         {
-            List<Sucursal> propias = todas.Where(s => s.VeterinariaId == v.Id).ToList();
+            List<Sucursal> propias = todas.Where(s => s.CafeteriaId == v.Id).ToList();
             if (!propias.Any(s => s.EsMatriz))
                 propias.Add(await CrearMatrizHeredadaAsync(v, ct));
             resultado.Add(Mapear(v, propias));
@@ -106,31 +106,31 @@ public sealed class GestionSucursales
         return resultado;
     }
 
-    /// <summary>Alta de veterinaria + su Matriz (con el plan y precio indicados).</summary>
-    public async Task<Result<VeterinariaConSucursalesDto>> CrearVeterinariaAsync(
+    /// <summary>Alta de Cafeteria + su Matriz (con el plan y precio indicados).</summary>
+    public async Task<Result<CafeteriaConSucursalesDto>> CrearCafeteriaAsync(
         string nombre, string telefono, string? direccion, PlanSuscripcion? plan, decimal? precio,
         CancellationToken ct = default)
     {
         PlanSuscripcion p = plan ?? PlanSuscripcion.Mensual;
-        Result<Veterinaria> vet = Veterinaria.Crear(nombre, telefono, direccion, p);
+        Result<Cafeteria> vet = Cafeteria.Crear(nombre, telefono, direccion, p);
         if (!vet.EsExito)
-            return Result<VeterinariaConSucursalesDto>.Falla(vet.Error!);
+            return Result<CafeteriaConSucursalesDto>.Falla(vet.Error!);
 
         Result<Sucursal> matriz = Sucursal.Crear(vet.Valor!.Id, "Matriz", direccion, telefono, p, precio, esMatriz: true, hoy: Hoy());
         if (!matriz.EsExito)
-            return Result<VeterinariaConSucursalesDto>.Falla(matriz.Error!);
+            return Result<CafeteriaConSucursalesDto>.Falla(matriz.Error!);
 
-        await _veterinarias.AgregarAsync(vet.Valor, ct);
+        await _Cafeterias.AgregarAsync(vet.Valor, ct);
         await _sucursales.AgregarAsync(matriz.Valor!, ct);
-        return Result<VeterinariaConSucursalesDto>.Exito(Mapear(vet.Valor, [matriz.Valor!]));
+        return Result<CafeteriaConSucursalesDto>.Exito(Mapear(vet.Valor, [matriz.Valor!]));
     }
 
-    public async Task<Result<SucursalDto>> CrearSucursalAsync(Guid veterinariaId, CrearSucursalComando c, CancellationToken ct = default)
+    public async Task<Result<SucursalDto>> CrearSucursalAsync(Guid CafeteriaId, CrearSucursalComando c, CancellationToken ct = default)
     {
-        Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(veterinariaId, ct);
+        Cafeteria? vet = await _Cafeterias.ObtenerPorIdAsync(CafeteriaId, ct);
         if (vet is null)
-            return Result<SucursalDto>.Falla("La veterinaria no existe.");
-        Result<Sucursal> s = Sucursal.Crear(veterinariaId, c.Nombre, c.Direccion, c.Telefono, c.Plan, c.Precio, hoy: Hoy());
+            return Result<SucursalDto>.Falla("La Cafeteria no existe.");
+        Result<Sucursal> s = Sucursal.Crear(CafeteriaId, c.Nombre, c.Direccion, c.Telefono, c.Plan, c.Precio, hoy: Hoy());
         if (!s.EsExito)
             return Result<SucursalDto>.Falla(s.Error!);
         await _sucursales.AgregarAsync(s.Valor!, ct);
@@ -142,7 +142,7 @@ public sealed class GestionSucursales
 
     /// <summary>
     /// Renueva un periodo y REGISTRA EL PAGO (monto = precio de la sucursal si no se indica;
-    /// fecha = hoy si no se indica). Si es la Matriz, además reactiva la veterinaria.
+    /// fecha = hoy si no se indica). Si es la Matriz, además reactiva la Cafeteria.
     /// </summary>
     public async Task<Result<SucursalDto>> RenovarAsync(Guid id, RenovarComando? c = null, CancellationToken ct = default)
     {
@@ -159,7 +159,7 @@ public sealed class GestionSucursales
         DateOnly vencimientoPrevio = s.FechaRenovacion;
         (DateOnly desde, DateOnly hasta) = s.Renovar(hoy);
         Result<PagoSuscripcion> pago = PagoSuscripcion.Registrar(
-            s.VeterinariaId, s.Id, c?.Monto ?? s.Precio, fechaPago, s.Plan, desde, hasta, c?.Nota);
+            s.CafeteriaId, s.Id, c?.Monto ?? s.Precio, fechaPago, s.Plan, desde, hasta, c?.Nota);
         if (!pago.EsExito)
         {
             s.AjustarRenovacion(vencimientoPrevio);
@@ -169,7 +169,7 @@ public sealed class GestionSucursales
         await _sucursales.ActualizarAsync(s, ct);
         await _pagos.AgregarAsync(pago.Valor!, ct);
         if (s.EsMatriz)
-            await CambiarEstadoVeterinariaInternoAsync(s.VeterinariaId, activar: true, ct);
+            await CambiarEstadoCafeteriaInternoAsync(s.CafeteriaId, activar: true, ct);
         return Result<SucursalDto>.Exito(SucursalDto.Desde(s));
     }
 
@@ -177,7 +177,7 @@ public sealed class GestionSucursales
     public async Task<IReadOnlyList<PagoSuscripcionDto>> ListarPagosAsync(
         DateOnly? desde, DateOnly? hasta, CancellationToken ct = default)
     {
-        IReadOnlyList<VeterinariaConSucursalesDto> vets = await ListarAsync(ct);
+        IReadOnlyList<CafeteriaConSucursalesDto> vets = await ListarAsync(ct);
         var nombreVet = vets.ToDictionary(v => v.Id, v => v.Nombre);
         var nombreSuc = vets.SelectMany(v => v.Sucursales).ToDictionary(s => s.Id, s => (s.Nombre, s.EsMatriz));
 
@@ -189,7 +189,7 @@ public sealed class GestionSucursales
             {
                 (string Nombre, bool EsMatriz) suc = nombreSuc.GetValueOrDefault(p.SucursalId, ("Sucursal", false));
                 return new PagoSuscripcionDto(
-                    p.Id, p.VeterinariaId, nombreVet.GetValueOrDefault(p.VeterinariaId, "Veterinaria"),
+                    p.Id, p.CafeteriaId, nombreVet.GetValueOrDefault(p.CafeteriaId, "Cafeteria"),
                     p.SucursalId, suc.Nombre, suc.EsMatriz, p.Monto, p.FechaPago, p.Plan,
                     p.PeriodoDesde, p.PeriodoHasta, p.Nota, p.Anulado);
             })
@@ -215,45 +215,45 @@ public sealed class GestionSucursales
     public Task<Result<SucursalDto>> AjustarRenovacionAsync(Guid id, DateOnly fecha, CancellationToken ct = default)
         => ConSucursalAsync(id, s => { s.AjustarRenovacion(fecha); return Result<bool>.Exito(true); }, ct);
 
-    /// <summary>Activa/desactiva una sucursal que NO es la Matriz (la Matriz sigue a la veterinaria).</summary>
+    /// <summary>Activa/desactiva una sucursal que NO es la Matriz (la Matriz sigue a la Cafeteria).</summary>
     public Task<Result<SucursalDto>> CambiarEstadoAsync(Guid id, bool activar, CancellationToken ct = default)
         => ConSucursalAsync(id, s =>
         {
             if (s.EsMatriz)
-                return Result<bool>.Falla("La Matriz se activa o desactiva junto con la veterinaria.");
+                return Result<bool>.Falla("La Matriz se activa o desactiva junto con la Cafeteria.");
             if (activar) s.Activar(); else s.Desactivar();
             return Result<bool>.Exito(true);
         }, ct);
 
-    // ── Compatibilidad: operaciones "de veterinaria" que ahora actúan sobre su Matriz ──
+    // ── Compatibilidad: operaciones "de Cafeteria" que ahora actúan sobre su Matriz ──
 
-    public async Task<Result<SucursalDto>> RenovarMatrizAsync(Guid veterinariaId, CancellationToken ct = default)
+    public async Task<Result<SucursalDto>> RenovarMatrizAsync(Guid CafeteriaId, CancellationToken ct = default)
     {
-        Sucursal? m = await MatrizAsync(veterinariaId, ct);
-        return m is null ? Result<SucursalDto>.Falla("La veterinaria no existe.") : await RenovarAsync(m.Id, null, ct);
+        Sucursal? m = await MatrizAsync(CafeteriaId, ct);
+        return m is null ? Result<SucursalDto>.Falla("La Cafeteria no existe.") : await RenovarAsync(m.Id, null, ct);
     }
 
-    public async Task<Result<SucursalDto>> AjustarRenovacionMatrizAsync(Guid veterinariaId, DateOnly fecha, CancellationToken ct = default)
+    public async Task<Result<SucursalDto>> AjustarRenovacionMatrizAsync(Guid CafeteriaId, DateOnly fecha, CancellationToken ct = default)
     {
-        Sucursal? m = await MatrizAsync(veterinariaId, ct);
-        return m is null ? Result<SucursalDto>.Falla("La veterinaria no existe.") : await AjustarRenovacionAsync(m.Id, fecha, ct);
+        Sucursal? m = await MatrizAsync(CafeteriaId, ct);
+        return m is null ? Result<SucursalDto>.Falla("La Cafeteria no existe.") : await AjustarRenovacionAsync(m.Id, fecha, ct);
     }
 
-    /// <summary>Edita la veterinaria. Dirección y plan (si vienen) se aplican a la Matriz.</summary>
-    public async Task<Result<bool>> EditarVeterinariaAsync(
-        Guid veterinariaId, string nombre, string telefono, string? direccion, PlanSuscripcion? plan,
+    /// <summary>Edita la Cafeteria. Dirección y plan (si vienen) se aplican a la Matriz.</summary>
+    public async Task<Result<bool>> EditarCafeteriaAsync(
+        Guid CafeteriaId, string nombre, string telefono, string? direccion, PlanSuscripcion? plan,
         CancellationToken ct = default)
     {
-        Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(veterinariaId, ct);
+        Cafeteria? vet = await _Cafeterias.ObtenerPorIdAsync(CafeteriaId, ct);
         if (vet is null)
-            return Result<bool>.Falla("La veterinaria no existe.");
+            return Result<bool>.Falla("La Cafeteria no existe.");
         Result<bool> r = vet.Editar(nombre, telefono, direccion, plan ?? vet.Plan);
         if (!r.EsExito)
             return r;
-        await _veterinarias.ActualizarAsync(vet, ct);
+        await _Cafeterias.ActualizarAsync(vet, ct);
 
         // La dirección siempre se sincroniza con la Matriz; el plan solo si viene.
-        Sucursal? m = await MatrizAsync(veterinariaId, ct);
+        Sucursal? m = await MatrizAsync(CafeteriaId, ct);
         if (m is not null)
         {
             Result<bool> rm = m.Editar(m.Nombre, direccion, m.Telefono, plan ?? m.Plan, m.Precio);
@@ -264,23 +264,23 @@ public sealed class GestionSucursales
         return Result<bool>.Exito(true);
     }
 
-    /// <summary>Activa/desactiva la veterinaria completa (y su Matriz con ella).</summary>
-    public async Task<Result<bool>> CambiarEstadoVeterinariaAsync(Guid veterinariaId, bool activar, CancellationToken ct = default)
-        => await CambiarEstadoVeterinariaInternoAsync(veterinariaId, activar, ct)
+    /// <summary>Activa/desactiva la Cafeteria completa (y su Matriz con ella).</summary>
+    public async Task<Result<bool>> CambiarEstadoCafeteriaAsync(Guid CafeteriaId, bool activar, CancellationToken ct = default)
+        => await CambiarEstadoCafeteriaInternoAsync(CafeteriaId, activar, ct)
             ? Result<bool>.Exito(true)
-            : Result<bool>.Falla("La veterinaria no existe.");
+            : Result<bool>.Falla("La Cafeteria no existe.");
 
     // ── Internos ──
 
-    private async Task<bool> CambiarEstadoVeterinariaInternoAsync(Guid veterinariaId, bool activar, CancellationToken ct)
+    private async Task<bool> CambiarEstadoCafeteriaInternoAsync(Guid CafeteriaId, bool activar, CancellationToken ct)
     {
-        Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(veterinariaId, ct);
+        Cafeteria? vet = await _Cafeterias.ObtenerPorIdAsync(CafeteriaId, ct);
         if (vet is null)
             return false;
         if (activar) vet.Activar(); else vet.Desactivar();
-        await _veterinarias.ActualizarAsync(vet, ct);
+        await _Cafeterias.ActualizarAsync(vet, ct);
 
-        Sucursal? m = await MatrizAsync(veterinariaId, ct);
+        Sucursal? m = await MatrizAsync(CafeteriaId, ct);
         if (m is not null)
         {
             if (activar) m.Activar(); else m.Desactivar();
@@ -301,19 +301,19 @@ public sealed class GestionSucursales
         return Result<SucursalDto>.Exito(SucursalDto.Desde(s));
     }
 
-    /// <summary>Matriz de la veterinaria; la crea (heredada) si aún no existe. Null si no existe la veterinaria.</summary>
-    private async Task<Sucursal?> MatrizAsync(Guid veterinariaId, CancellationToken ct)
+    /// <summary>Matriz de la Cafeteria; la crea (heredada) si aún no existe. Null si no existe la Cafeteria.</summary>
+    private async Task<Sucursal?> MatrizAsync(Guid CafeteriaId, CancellationToken ct)
     {
         Sucursal? m = (await _sucursales.ObtenerTodosAsync(ct))
-            .FirstOrDefault(s => s.VeterinariaId == veterinariaId && s.EsMatriz);
+            .FirstOrDefault(s => s.CafeteriaId == CafeteriaId && s.EsMatriz);
         if (m is not null)
             return m;
-        Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(veterinariaId, ct);
+        Cafeteria? vet = await _Cafeterias.ObtenerPorIdAsync(CafeteriaId, ct);
         return vet is null ? null : await CrearMatrizHeredadaAsync(vet, ct);
     }
 
-    /// <summary>Crea la Matriz de una veterinaria anterior a las sucursales, con su plan/fecha/estado.</summary>
-    private async Task<Sucursal> CrearMatrizHeredadaAsync(Veterinaria v, CancellationToken ct)
+    /// <summary>Crea la Matriz de una Cafeteria anterior a las sucursales, con su plan/fecha/estado.</summary>
+    private async Task<Sucursal> CrearMatrizHeredadaAsync(Cafeteria v, CancellationToken ct)
     {
         DateOnly? fecha = v.FechaRenovacion == default ? null : v.FechaRenovacion;
         Sucursal m = Sucursal.Crear(v.Id, "Matriz", v.Direccion, v.Telefono, v.Plan, null, esMatriz: true, fechaRenovacion: fecha, hoy: Hoy()).Valor!;
@@ -323,7 +323,7 @@ public sealed class GestionSucursales
         return m;
     }
 
-    private static VeterinariaConSucursalesDto Mapear(Veterinaria v, IEnumerable<Sucursal> sucursales)
+    private static CafeteriaConSucursalesDto Mapear(Cafeteria v, IEnumerable<Sucursal> sucursales)
     {
         List<SucursalDto> lista = sucursales
             .OrderByDescending(s => s.EsMatriz)
@@ -331,7 +331,7 @@ public sealed class GestionSucursales
             .Select(SucursalDto.Desde)
             .ToList();
         SucursalDto? matriz = lista.FirstOrDefault(s => s.EsMatriz);
-        return new VeterinariaConSucursalesDto(
+        return new CafeteriaConSucursalesDto(
             v.Id, v.Nombre, v.Telefono, matriz?.Direccion ?? v.Direccion, v.Activa, v.FechaAlta,
             matriz?.Plan ?? v.Plan, matriz?.FechaRenovacion ?? v.FechaRenovacion, lista);
     }
