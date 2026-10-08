@@ -6,13 +6,12 @@ namespace Chiron.Application.Seguridad;
 /// Datos que se incluirán en el token para identificar al usuario y autorizar.
 /// </summary>
 /// <param name="UsuarioId">Id del usuario.</param>
-/// <param name="VeterinariaId">Tenant al que pertenece (aislamiento multi-tenant).</param>
-/// <param name="NombreUsuario">Identificador de acceso (usuario o teléfono).</param>
+/// <param name="CafeteriaId">Tenant al que pertenece (aislamiento multi-tenant).</param>
+/// <param name="NombreUsuario">Identificador de acceso.</param>
 /// <param name="Rol">Rol para autorización.</param>
-/// <param name="ClienteId">Cliente asociado (solo para dueños de mascota), o null.</param>
-/// <param name="AdminOperativo">Si el Admin de la veterinaria puede operar (no solo supervisar).</param>
+/// <param name="AdminOperativo">Si el Admin de la cafetería puede operar (no solo supervisar).</param>
 public sealed record DatosToken(
-    Guid UsuarioId, Guid VeterinariaId, string NombreUsuario, RolUsuario Rol, Guid? ClienteId,
+    Guid UsuarioId, Guid CafeteriaId, string NombreUsuario, RolUsuario Rol,
     bool AdminOperativo = true);
 
 /// <summary>

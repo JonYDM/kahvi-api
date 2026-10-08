@@ -4,11 +4,11 @@ using Chiron.Domain.PuntoVenta;
 namespace Chiron.Application.PuntoVenta;
 
 /// <summary>
-/// Repositorio específico de Producto (catálogo), acotado por veterinaria.
+/// Repositorio específico de Producto (catálogo), acotado por cafetería.
 /// </summary>
 public interface IProductoRepository : IRepository<Producto>
 {
-    /// <summary>Lista el catálogo de productos de una veterinaria.</summary>
-    Task<IReadOnlyList<Producto>> ListarPorVeterinariaAsync(
-        Guid veterinariaId, CancellationToken cancellationToken = default);
+    /// <summary>Lista el catálogo de productos de una cafetería.</summary>
+    Task<IReadOnlyList<Producto>> ListarPorCafeteriaAsync(
+        Guid cafeteriaId, CancellationToken cancellationToken = default);
 }

@@ -6,18 +6,18 @@ namespace Chiron.Domain.Usuarios;
 /// </summary>
 public enum RolUsuario
 {
-    /// <summary>Dueño/gerente de la veterinaria: acceso total dentro de su tenant.</summary>
+    /// <summary>Dueño/gerente de la cafetería: acceso total dentro de su tenant.</summary>
     Administrador = 1,
 
-    /// <summary>Atiende pacientes: ve y edita expedientes clínicos.</summary>
-    Veterinario = 2,
+    /// <summary>Mesero: levanta comandas y las envía a cocina.</summary>
+    Mesero = 2,
 
-    /// <summary>Recepción: agenda citas, registra clientes y mascotas.</summary>
-    Recepcionista = 3,
+    /// <summary>Cocina: ve las comandas y avanza su preparación.</summary>
+    Cocina = 3,
 
-    /// <summary>Cliente final (dueño de mascota): acceso limitado a SUS mascotas e historial.</summary>
-    DuenoMascota = 4,
+    /// <summary>Caja: cobra las comandas listas y genera la venta.</summary>
+    Caja = 4,
 
-    /// <summary>SuperAdmin (dueño de Chiron): gestiona veterinarias y suscripciones. Por encima de los tenants.</summary>
+    /// <summary>SuperAdmin (dueño de Kahvi): gestiona cafeterías y suscripciones. Por encima de los tenants.</summary>
     SuperAdmin = 99
 }

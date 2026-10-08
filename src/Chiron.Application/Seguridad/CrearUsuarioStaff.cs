@@ -3,9 +3,9 @@ using Chiron.Domain.Usuarios;
 
 namespace Chiron.Application.Seguridad;
 
-/// <summary>Datos para crear un usuario de staff (Administrador, Veterinario, Recepcionista).</summary>
+/// <summary>Datos para crear un usuario de staff (Administrador, Mesero, Cocina, Caja).</summary>
 public sealed record CrearUsuarioStaffComando(
-    Guid VeterinariaId,
+    Guid CafeteriaId,
     string NombreUsuario,
     string Nombre,
     string Pin,
@@ -29,10 +29,6 @@ public sealed class CrearUsuarioStaff
     public async Task<Result<Guid>> EjecutarAsync(
         CrearUsuarioStaffComando comando, CancellationToken cancellationToken = default)
     {
-        // Solo roles de staff (no dueño de mascota por esta vía).
-        if (comando.Rol == RolUsuario.DuenoMascota)
-            return Result<Guid>.Falla("Los dueños de mascota se crean por otra vía.");
-
         Result<bool> pinValido = ValidadorPin.Validar(comando.Pin);
         if (!pinValido.EsExito)
             return Result<Guid>.Falla(pinValido.Error!);
@@ -44,7 +40,7 @@ public sealed class CrearUsuarioStaff
 
         string hash = _hasheador.Hashear(comando.Pin);
         Result<Usuario> usuarioResult = Usuario.CrearStaff(
-            comando.VeterinariaId, comando.NombreUsuario, comando.Nombre, hash, comando.Rol);
+            comando.CafeteriaId, comando.NombreUsuario, comando.Nombre, hash, comando.Rol);
         if (!usuarioResult.EsExito)
             return Result<Guid>.Falla(usuarioResult.Error!);
 

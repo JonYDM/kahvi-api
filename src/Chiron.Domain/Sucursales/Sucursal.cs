@@ -1,12 +1,12 @@
 using Chiron.Domain.Common;
-using Chiron.Domain.Veterinarias;
+using Chiron.Domain.Cafeterias;
 
 namespace Chiron.Domain.Sucursales;
 
 /// <summary>
-/// Sucursal de una veterinaria = unidad de COBRO del SaaS. Cada sucursal paga su propia
+/// Sucursal de una cafetería = unidad de COBRO del SaaS. Cada sucursal paga su propia
 /// renta: tiene plan, precio (ajustable por sucursal) y fecha de renovaciÃ³n.
-/// Toda veterinaria tiene al menos una: la Matriz (su estado sigue al de la veterinaria).
+/// Toda cafetería tiene al menos una: la Matriz (su estado sigue al de la cafetería).
 /// </summary>
 public sealed class Sucursal : EntidadBase
 {
@@ -16,12 +16,12 @@ public sealed class Sucursal : EntidadBase
     /// <summary>Precio base anual por sucursal (MXN): 10 meses, 2 gratis.</summary>
     public const decimal PrecioAnualBase = 2500m;
 
-    public Guid VeterinariaId { get; private set; }
+    public Guid CafeteriaId { get; private set; }
     public string Nombre { get; private set; }
     public string? Direccion { get; private set; }
     public string? Telefono { get; private set; }
 
-    /// <summary>Sucursal principal (se crea con la veterinaria; no se desactiva por separado).</summary>
+    /// <summary>Sucursal principal (se crea con la cafetería; no se desactiva por separado).</summary>
     public bool EsMatriz { get; private set; }
 
     public bool Activa { get; private set; }
@@ -34,10 +34,10 @@ public sealed class Sucursal : EntidadBase
     /// <summary>Fecha en que vence/renueva la suscripciÃ³n de esta sucursal.</summary>
     public DateOnly FechaRenovacion { get; private set; }
 
-    private Sucursal(Guid veterinariaId, string nombre, string? direccion, string? telefono,
+    private Sucursal(Guid CafeteriaId, string nombre, string? direccion, string? telefono,
         bool esMatriz, PlanSuscripcion plan, decimal precio, DateOnly fechaRenovacion)
     {
-        VeterinariaId = veterinariaId;
+        CafeteriaId = CafeteriaId;
         Nombre = nombre;
         Direccion = direccion;
         Telefono = telefono;
@@ -59,13 +59,13 @@ public sealed class Sucursal : EntidadBase
     /// <summary>
     /// Crea una sucursal. Si no se indica precio, usa el sugerido del plan. La primera
     /// renovaciÃ³n es un periodo despuÃ©s de hoy (o la fecha indicada, p. ej. la Matriz
-    /// heredada de una veterinaria existente).
+    /// heredada de una cafetería existente).
     /// </summary>
-    public static Result<Sucursal> Crear(Guid veterinariaId, string nombre, string? direccion, string? telefono,
+    public static Result<Sucursal> Crear(Guid CafeteriaId, string nombre, string? direccion, string? telefono,
         PlanSuscripcion plan, decimal? precio, bool esMatriz = false, DateOnly? fechaRenovacion = null, DateOnly? hoy = null)
     {
-        if (veterinariaId == Guid.Empty)
-            return Result<Sucursal>.Falla("La sucursal debe pertenecer a una veterinaria.");
+        if (CafeteriaId == Guid.Empty)
+            return Result<Sucursal>.Falla("La sucursal debe pertenecer a una cafetería.");
         Result<bool> datos = Validar(nombre, telefono, plan, precio ?? PrecioSugerido(plan));
         if (!datos.EsExito)
             return Result<Sucursal>.Falla(datos.Error!);
@@ -73,7 +73,7 @@ public sealed class Sucursal : EntidadBase
         // "Hoy" lo decide quien llama (hora de MÃ©xico); UTC solo como respaldo.
         DateOnly dia = hoy ?? DateOnly.FromDateTime(DateTime.UtcNow);
         return Result<Sucursal>.Exito(new Sucursal(
-            veterinariaId, nombre.Trim(), Limpiar(direccion), Limpiar(telefono), esMatriz, plan,
+            CafeteriaId, nombre.Trim(), Limpiar(direccion), Limpiar(telefono), esMatriz, plan,
             precio ?? PrecioSugerido(plan), fechaRenovacion ?? SiguientePeriodo(dia, plan)));
     }
 

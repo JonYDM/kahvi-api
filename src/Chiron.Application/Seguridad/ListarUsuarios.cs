@@ -12,32 +12,30 @@ public sealed record UsuarioDto(
     string Nombre,
     RolUsuario Rol,
     bool Activo,
-    Guid? ClienteId,
-    Guid VeterinariaId,
+    Guid CafeteriaId,
     string? Telefono = null)
 {
     /// <summary>Mapea una entidad Usuario a su DTO seguro.</summary>
     public static UsuarioDto Desde(Usuario u) =>
-        new(u.Id, u.NombreUsuario, u.Nombre, u.Rol, u.Activo, u.ClienteId, u.VeterinariaId, u.Telefono);
+        new(u.Id, u.NombreUsuario, u.Nombre, u.Rol, u.Activo, u.CafeteriaId, u.Telefono);
 }
 
 /// <summary>
-/// Caso de uso: listar los usuarios de una veterinaria (para el Administrador).
-/// Devuelve DTOs seguros (sin hash). Se puede excluir al propio SuperAdmin/otros
-/// según el rol, pero por defecto lista el staff y dueños del tenant.
+/// Caso de uso: listar los usuarios de una cafetería (para el Administrador).
+/// Devuelve DTOs seguros (sin hash).
 /// </summary>
-public sealed class ListarUsuariosDeVeterinaria
+public sealed class ListarUsuariosDeCafeteria
 {
     private readonly IUsuarioRepository _usuarios;
 
-    public ListarUsuariosDeVeterinaria(IUsuarioRepository usuarios) => _usuarios = usuarios;
+    public ListarUsuariosDeCafeteria(IUsuarioRepository usuarios) => _usuarios = usuarios;
 
     public async Task<IReadOnlyList<UsuarioDto>> EjecutarAsync(
-        Guid veterinariaId,
+        Guid cafeteriaId,
         Chiron.Application.Common.FiltroEstado estado = Chiron.Application.Common.FiltroEstado.Activos,
         CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Usuario> usuarios = await _usuarios.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
+        IReadOnlyList<Usuario> usuarios = await _usuarios.ListarPorCafeteriaAsync(cafeteriaId, cancellationToken);
         return Chiron.Application.Common.FiltroEstadoExtensiones
             .AplicarFiltro(usuarios, estado, u => u.Activo)
             .Select(UsuarioDto.Desde)

@@ -1,5 +1,5 @@
 using Chiron.Domain.Common;
-using Chiron.Domain.Veterinarias;
+using Chiron.Domain.Cafeterias;
 
 namespace Chiron.Domain.Suscripciones;
 
@@ -10,7 +10,7 @@ namespace Chiron.Domain.Suscripciones;
 /// </summary>
 public sealed class PagoSuscripcion : EntidadBase
 {
-    public Guid VeterinariaId { get; private set; }
+    public Guid CafeteriaId { get; private set; }
     public Guid SucursalId { get; private set; }
 
     /// <summary>Monto cobrado (MXN). Puede diferir del precio de la sucursal (descuento, prórroga).</summary>
@@ -32,10 +32,10 @@ public sealed class PagoSuscripcion : EntidadBase
     /// <summary>Momento (UTC) en que se capturó el pago.</summary>
     public DateTime FechaRegistro { get; private set; }
 
-    private PagoSuscripcion(Guid veterinariaId, Guid sucursalId, decimal monto, DateOnly fechaPago,
+    private PagoSuscripcion(Guid CafeteriaId, Guid sucursalId, decimal monto, DateOnly fechaPago,
         PlanSuscripcion plan, DateOnly periodoDesde, DateOnly periodoHasta, string? nota)
     {
-        VeterinariaId = veterinariaId;
+        CafeteriaId = CafeteriaId;
         SucursalId = sucursalId;
         Monto = monto;
         FechaPago = fechaPago;
@@ -49,10 +49,10 @@ public sealed class PagoSuscripcion : EntidadBase
     // Constructor privado sin parámetros para EF Core.
     private PagoSuscripcion() { }
 
-    public static Result<PagoSuscripcion> Registrar(Guid veterinariaId, Guid sucursalId, decimal monto,
+    public static Result<PagoSuscripcion> Registrar(Guid CafeteriaId, Guid sucursalId, decimal monto,
         DateOnly fechaPago, PlanSuscripcion plan, DateOnly periodoDesde, DateOnly periodoHasta, string? nota)
     {
-        if (veterinariaId == Guid.Empty || sucursalId == Guid.Empty)
+        if (CafeteriaId == Guid.Empty || sucursalId == Guid.Empty)
             return Result<PagoSuscripcion>.Falla("El pago debe pertenecer a una sucursal.");
         if (monto < 0 || monto > 99_999_999m)
             return Result<PagoSuscripcion>.Falla("El monto no es válido.");
@@ -63,7 +63,7 @@ public sealed class PagoSuscripcion : EntidadBase
             return Result<PagoSuscripcion>.Falla("La nota es demasiado larga.");
 
         return Result<PagoSuscripcion>.Exito(new PagoSuscripcion(
-            veterinariaId, sucursalId, monto, fechaPago, plan, periodoDesde, periodoHasta, n));
+            CafeteriaId, sucursalId, monto, fechaPago, plan, periodoDesde, periodoHasta, n));
     }
 
     /// <summary>Anula el pago (no cuenta en ingresos). No revierte la fecha de renovación.</summary>

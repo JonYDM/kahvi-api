@@ -3,13 +3,13 @@ using Chiron.Domain.Common;
 namespace Chiron.Domain.PuntoVenta;
 
 /// <summary>
-/// Producto del catálogo de la veterinaria (alimento, medicina, accesorio, etc.).
-/// Multi-tenant (pertenece a una Veterinaria). Diseño rico con fábrica Crear.
+/// Producto del catálogo de la cafeter�a (alimento, medicina, accesorio, etc.).
+/// Multi-tenant (pertenece a una cafeter�a). Diseño rico con fábrica Crear.
 /// </summary>
 public sealed class Producto : EntidadBase
 {
-    /// <summary>Veterinaria (tenant) dueña del producto.</summary>
-    public Guid VeterinariaId { get; private set; }
+    /// <summary>cafeter�a (tenant) dueña del producto.</summary>
+    public Guid CafeteriaId { get; private set; }
 
     /// <summary>Nombre del producto.</summary>
     public string Nombre { get; private set; }
@@ -26,9 +26,9 @@ public sealed class Producto : EntidadBase
     /// <summary>Indica si el producto está activo en el catálogo (baja lógica).</summary>
     public bool Activo { get; private set; }
 
-    private Producto(Guid veterinariaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
+    private Producto(Guid CafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
     {
-        VeterinariaId = veterinariaId;
+        CafeteriaId = CafeteriaId;
         Nombre = nombre;
         Categoria = categoria;
         Precio = precio;
@@ -40,10 +40,10 @@ public sealed class Producto : EntidadBase
     /// Crea un Producto validando las reglas de negocio.
     /// </summary>
     public static Result<Producto> Crear(
-        Guid veterinariaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
+        Guid CafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
     {
-        if (veterinariaId == Guid.Empty)
-            return Result<Producto>.Falla("El producto debe pertenecer a una veterinaria válida.");
+        if (CafeteriaId == Guid.Empty)
+            return Result<Producto>.Falla("El producto debe pertenecer a una cafeter�a válida.");
 
         if (string.IsNullOrWhiteSpace(nombre))
             return Result<Producto>.Falla("El nombre del producto es obligatorio.");
@@ -56,7 +56,7 @@ public sealed class Producto : EntidadBase
         if (stock < 0)
             return Result<Producto>.Falla("El stock no puede ser negativo.");
 
-        return Result<Producto>.Exito(new Producto(veterinariaId, nombre.Trim(), categoria, precio, stock));
+        return Result<Producto>.Exito(new Producto(CafeteriaId, nombre.Trim(), categoria, precio, stock));
     }
 
     /// <summary>
