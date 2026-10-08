@@ -15,8 +15,8 @@ public sealed class Producto : EntidadBase
     /// <summary>Nombre del producto.</summary>
     public string Nombre { get; private set; }
 
-    /// <summary>Categoría del producto.</summary>
-    public CategoriaProducto Categoria { get; private set; }
+    /// <summary>Categoría del producto (referencia a la entidad dinámica Categoria).</summary>
+    public Guid CategoriaId { get; private set; }
 
     /// <summary>Precio de venta unitario. Se almacena como decimal (correcto para dinero).</summary>
     public decimal Precio { get; private set; }
@@ -30,11 +30,11 @@ public sealed class Producto : EntidadBase
     /// <summary>Indica si el producto está activo en el catálogo (baja lógica).</summary>
     public bool Activo { get; private set; }
 
-    private Producto(Guid cafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, decimal? costo)
+    private Producto(Guid cafeteriaId, string nombre, Guid categoriaId, decimal precio, decimal? costo)
     {
         CafeteriaId = cafeteriaId;
         Nombre = nombre;
-        Categoria = categoria;
+        CategoriaId = categoriaId;
         Precio = precio;
         Costo = costo;
         Activo = true;
@@ -53,13 +53,16 @@ public sealed class Producto : EntidadBase
     /// Crea un Producto validando las reglas de negocio.
     /// </summary>
     public static Result<Producto> Crear(
-        Guid cafeteriaId, string nombre, CategoriaProducto categoria, decimal precio, decimal? costo = null)
+        Guid cafeteriaId, string nombre, Guid categoriaId, decimal precio, decimal? costo = null)
     {
         if (cafeteriaId == Guid.Empty)
             return Result<Producto>.Falla("El producto debe pertenecer a una cafetería válida.");
 
         if (string.IsNullOrWhiteSpace(nombre))
             return Result<Producto>.Falla("El nombre del producto es obligatorio.");
+
+        if (categoriaId == Guid.Empty)
+            return Result<Producto>.Falla("La categoria es obligatoria.");
 
         // El precio debe ser positivo. (> 0: un producto no se vende en 0.)
         if (precio <= 0)
@@ -69,7 +72,7 @@ public sealed class Producto : EntidadBase
         if (costo.HasValue && costo.Value < 0)
             return Result<Producto>.Falla("El costo no puede ser negativo.");
 
-        return Result<Producto>.Exito(new Producto(cafeteriaId, nombre.Trim(), categoria, precio, costo));
+        return Result<Producto>.Exito(new Producto(cafeteriaId, nombre.Trim(), categoriaId, precio, costo));
     }
 
     /// <summary>Actualiza el precio del producto.</summary>
@@ -82,12 +85,12 @@ public sealed class Producto : EntidadBase
     }
 
     /// <summary>Actualiza nombre y categoría del producto (edición de catálogo).</summary>
-    public Result<bool> ActualizarDatos(string nombre, CategoriaProducto categoria)
+    public Result<bool> ActualizarDatos(string nombre, Guid categoriaId)
     {
         if (string.IsNullOrWhiteSpace(nombre))
             return Result<bool>.Falla("El nombre del producto es obligatorio.");
         Nombre = nombre.Trim();
-        Categoria = categoria;
+        CategoriaId = categoriaId;
         return Result<bool>.Exito(true);
     }
 

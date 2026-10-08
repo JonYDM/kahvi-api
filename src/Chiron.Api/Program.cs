@@ -401,7 +401,7 @@ app.MapPost("/api/productos", async (AgregarProductoDto dto, ClaimsPrincipal use
 {
     if (CafeDelToken(user) is not Guid cafeteriaId)
         return SinCafeteria();
-    var cmd = new AgregarProductoComando(cafeteriaId, dto.Nombre, dto.Categoria, dto.Precio, dto.Costo);
+    var cmd = new AgregarProductoComando(cafeteriaId, dto.Nombre, dto.CategoriaId, dto.Precio, dto.Costo);
     return ToHttp(await uc.EjecutarAsync(cmd));
 })
 .WithName("AgregarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
@@ -423,7 +423,7 @@ app.MapGet("/api/productos", async (ClaimsPrincipal user, FiltroEstado? estado, 
     {
         id = p.Id,
         nombre = p.Nombre,
-        categoria = p.Categoria.ToString(),
+        categoriaId = p.CategoriaId,
         precio = p.Precio,
         costo = esAdmin ? p.Costo : (decimal?)null,
         activo = p.Activo
@@ -439,7 +439,7 @@ app.MapPut("/api/productos/{id:guid}", async (Guid id, EditarProductoDto dto, Cl
 {
     if (CafeDelToken(user) is not Guid cafeteriaId)
         return SinCafeteria();
-    var comando = new EditarProductoComando(id, cafeteriaId, dto.Nombre, dto.Categoria, dto.Precio, dto.Costo);
+    var comando = new EditarProductoComando(id, cafeteriaId, dto.Nombre, dto.CategoriaId, dto.Precio, dto.Costo);
     return ToHttp(await uc.EjecutarAsync(comando));
 })
 .WithName("EditarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
@@ -650,10 +650,10 @@ record EditarDatosUsuarioDto(
 record NuevaCategoriaDto(string Nombre, int Orden);
 
 // Agregar producto (sin stock, con costo opcional).
-record AgregarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio, decimal? Costo = null);
+record AgregarProductoDto(string Nombre, Guid CategoriaId, decimal Precio, decimal? Costo = null);
 
 // Editar producto (sin stock, con costo opcional).
-record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio, decimal? Costo = null);
+record EditarProductoDto(string Nombre, Guid CategoriaId, decimal Precio, decimal? Costo = null);
 
 // Ajustar fecha de renovación de sucursal.
 record AjustarRenovacionDto(DateOnly Fecha);

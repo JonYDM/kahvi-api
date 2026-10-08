@@ -8,7 +8,7 @@ public sealed record EditarProductoComando(
     Guid ProductoId,
     Guid CafeteriaId,
     string Nombre,
-    CategoriaProducto Categoria,
+    Guid CategoriaId,
     decimal Precio,
     decimal? Costo = null);
 
@@ -31,7 +31,7 @@ public sealed class EditarProducto
         if (producto.CafeteriaId != comando.CafeteriaId)
             return Result<bool>.Falla("El producto no pertenece a tu cafetería.");
 
-        Result<bool> datos = producto.ActualizarDatos(comando.Nombre, comando.Categoria);
+        Result<bool> datos = producto.ActualizarDatos(comando.Nombre, comando.CategoriaId);
         if (!datos.EsExito) return datos;
 
         Result<bool> precio = producto.CambiarPrecio(comando.Precio);

@@ -7,7 +7,7 @@ namespace Chiron.Application.PuntoVenta;
 public sealed record AgregarProductoComando(
     Guid CafeteriaId,
     string Nombre,
-    CategoriaProducto Categoria,
+    Guid CategoriaId,
     decimal Precio,
     decimal? Costo = null);
 
@@ -24,7 +24,7 @@ public sealed class AgregarProducto
         AgregarProductoComando comando, CancellationToken cancellationToken = default)
     {
         Result<Producto> resultado = Producto.Crear(
-            comando.CafeteriaId, comando.Nombre, comando.Categoria, comando.Precio, comando.Costo);
+            comando.CafeteriaId, comando.Nombre, comando.CategoriaId, comando.Precio, comando.Costo);
         if (!resultado.EsExito)
             return Result<Guid>.Falla(resultado.Error!);
 
