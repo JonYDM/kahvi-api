@@ -554,7 +554,13 @@ app.MapGet("/api/comandas/activas", async (ClaimsPrincipal user, ListarComandasA
     if (CafeDelToken(user) is not Guid cafeteriaId)
         return SinCafeteria();
 
-    Result<IReadOnlyList<Comanda>> r = await uc.EjecutarAsync(cafeteriaId);
+    // El Mesero solo ve sus propias comandas; Cocina/Caja/Admin ven todas.
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    Guid? meseroId = rolClaim == Mesero
+        ? (Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value, out Guid uid) ? uid : null)
+        : null;
+
+    Result<IReadOnlyList<Comanda>> r = await uc.EjecutarAsync(cafeteriaId, meseroId);
     if (!r.EsExito)
         return Results.BadRequest(new { error = r.Error });
 
@@ -565,6 +571,7 @@ app.MapGet("/api/comandas/activas", async (ClaimsPrincipal user, ListarComandasA
         folio = c.Folio,
         mesa = c.Mesa,
         meseroNombre = c.MeseroNombre,
+        meseroId = c.MeseroId,
         estado = c.Estado.ToString(),
         creadaEn = c.CreadaEn,
         total = c.Total,
@@ -583,7 +590,7 @@ app.MapGet("/api/comandas/activas", async (ClaimsPrincipal user, ListarComandasA
     return Results.Ok(dtos);
 })
 .WithName("ListarComandasActivas").WithTags("Comandas")
-.RequireAuthorization(p => p.RequireRole(Cocina, Caja, Administrador));
+.RequireAuthorization(p => p.RequireRole(Mesero, Cocina, Caja, Administrador));
 
 // Cocina o Admin avanzan el estado de una comanda.
 app.MapPost("/api/comandas/{id:guid}/avanzar", async (Guid id, ClaimsPrincipal user, AvanzarComanda uc) =>
